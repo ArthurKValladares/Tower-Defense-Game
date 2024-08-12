@@ -1,0 +1,11 @@
+add_executable(src main.cpp)
+
+target_compile_features(src PRIVATE cxx_std_23)
+set_target_properties(src PROPERTIES CXX_EXTENSIONS off CXX_STANDARD_REQUIRED on)
+
+if (MSVC)
+    # Maybe /W4 /Wall instead of /W3
+    target_compile_options(src PRIVATE /W3 /sdl /external:anglebrackets /external:W2 /fsanitize=address /wd4068)
+else ()
+    target_compile_options(src PRIVATE -Wall -Wextra -Wpedantic -isystem)
+endif ()
