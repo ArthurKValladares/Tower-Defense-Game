@@ -24,6 +24,6 @@ private:
 
     bool _is_initialized = false;
 
-    VkExtent2D _window_extent{ 0 , 0 };
+    VkExtent2D _window_extent = { 0 , 0 };
     struct SDL_Window* _window = nullptr;
 };
