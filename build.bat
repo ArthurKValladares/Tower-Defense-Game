@@ -4,7 +4,7 @@ setlocal
 echo -------------------------------------
 echo Building with CMake
 
-mkdir -p build
+mkdir build
 cd build
 cmake .. -DBUILD_SHARED_LIBS=off
 cmake --build .
