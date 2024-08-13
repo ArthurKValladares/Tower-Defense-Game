@@ -55,10 +55,10 @@ std::optional<EngineInitError> VkEngine::create_swapchain(uint32_t width, uint32
 }
 
 void VkEngine::destroy_swapchain() {
-    vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+    //vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
 	for (int i = 0; i < _swapchain_image_views.size(); i++) {
-		vkDestroyImageView(_device, _swapchain_image_views[i], nullptr);
+		//vkDestroyImageView(_device, _swapchain_image_views[i], nullptr);
 	}
 }
 
@@ -166,10 +166,10 @@ void VkEngine::cleanup() {
     if (_is_initialized) {
         destroy_swapchain();
 
-		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		vkDestroyDevice(_device, nullptr);
+		//vkDestroySurfaceKHR(_instance, _surface, nullptr);
+		//vkDestroyDevice(_device, nullptr);
 		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
-		vkDestroyInstance(_instance, nullptr);
+		//vkDestroyInstance(_instance, nullptr);
 
         SDL_DestroyWindow(_window);
     }
@@ -227,3 +227,5 @@ void VkEngine::run() {
 void VkEngine::draw() {
 
 }
+
+// TODO: For some weird reason, VkDestroy* functions are unresolved.
