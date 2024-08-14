@@ -1,5 +1,6 @@
 #include "defs.h"
 #include "vk_engine.h"
+#include "vk_initializers.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -55,10 +56,10 @@ std::optional<EngineInitError> VkEngine::create_swapchain(uint32_t width, uint32
 }
 
 void VkEngine::destroy_swapchain() {
-    //vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+    vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
 	for (int i = 0; i < _swapchain_image_views.size(); i++) {
-		//vkDestroyImageView(_device, _swapchain_image_views[i], nullptr);
+		vkDestroyImageView(_device, _swapchain_image_views[i], nullptr);
 	}
 }
 
@@ -121,6 +122,21 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 	_device = vkb_device.device;
 	_chosen_gpu = vkb_physical_device.physical_device;
 
+    // Create Graphics Queue
+    vkb::Result<VkQueue> graphics_queue_result = vkb_device.get_queue(vkb::QueueType::graphics);
+    if (!graphics_queue_result.has_value()) {
+        std::print(INIT_ERROR_STRING, "Could not initialize graphics queue with vk-bootstrap");
+        return EngineInitError::VK_GraphicsQueueInitFailed;
+    }
+    _graphics_queue = graphics_queue_result.value();
+
+	vkb::Result<uint32_t> graphics_queue_family_result = vkb_device.get_queue_index(vkb::QueueType::graphics);
+    if (!graphics_queue_family_result.has_value()) {
+        std::print(INIT_ERROR_STRING, "Could not initialize graphics queue family with vk-bootstrap");
+        return EngineInitError::VK_GraphicsQueueFamilyInitFailed;
+    }
+    _graphics_queue_family = graphics_queue_family_result.value();
+
     return std::nullopt;
 }
 
@@ -129,6 +145,24 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
 }
 
 std::optional<EngineInitError> VkEngine::init_commands() {
+    
+	VkCommandPoolCreateInfo commandPoolInfo =  vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+
+        if (vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i]._command_pool)) {
+            std::print(INIT_ERROR_STRING, "Could not create CommandPool");
+            return EngineInitError::VK_CreateCommandPoolFailed;
+        }
+
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._command_pool);
+
+		if(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._main_command_buffer)) {
+            std::print(INIT_ERROR_STRING, "Could not create CommandBuffer");
+            return EngineInitError::VK_CreateCommandBufferFailed;
+        }
+	}
+
     return std::nullopt;
 }
 
@@ -164,12 +198,18 @@ std::optional<EngineInitError> VkEngine::init() {
 
 void VkEngine::cleanup() {
     if (_is_initialized) {
+        vkDeviceWaitIdle(_device);
+
+        for (int i = 0; i < FRAME_OVERLAP; i++) {
+			vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
+		}
+
         destroy_swapchain();
 
-		//vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		//vkDestroyDevice(_device, nullptr);
+		vkDestroySurfaceKHR(_instance, _surface, nullptr);
+		vkDestroyDevice(_device, nullptr);
 		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
-		//vkDestroyInstance(_instance, nullptr);
+		vkDestroyInstance(_instance, nullptr);
 
         SDL_DestroyWindow(_window);
     }
@@ -227,5 +267,3 @@ void VkEngine::run() {
 void VkEngine::draw() {
 
 }
-
-// TODO: For some weird reason, VkDestroy* functions are unresolved.
