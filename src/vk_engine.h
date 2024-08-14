@@ -14,19 +14,34 @@ enum class EngineInitError {
     SDL_GetSizeFailed,
     SDL_VulkanInitFailed,
     VK_InstanceInitFailed,
-    VK_DeviceInitFailed,
-    VK_SwapchainInitFailed,
-    VK_SwapchainImagesInitFailed,
-    VK_SwapchainImageViewsInitFailed,
-    VK_GraphicsQueueInitFailed,
-    VK_GraphicsQueueFamilyInitFailed,
-    VK_CreateCommandPoolFailed,
-    VK_CreateCommandBufferFailed,
+    Vk_DeviceInitFailed,
+    Vk_SwapchainInitFailed,
+    Vk_SwapchainImagesInitFailed,
+    Vk_SwapchainImageViewsInitFailed,
+    Vk_GraphicsQueueInitFailed,
+    Vk_GraphicsQueueFamilyInitFailed,
+    Vk_CreateCommandPoolFailed,
+    Vk_CreateCommandBufferFailed,
+    Vk_CreateFenceFailed,
+    Vk_CreateSemaphoreFailed,
+};
+
+enum class EngineRunError {
+    Vk_WaitOnFenceFailed,
+    Vk_ResetFenceFailed,
+    Vk_ResetCommandBufferFailed,
+    Vk_BeginCommandBufferFailed,
+    Vk_EndCommandBufferFailed,
+    Vk_QueueSubmitFailed,
+    Vk_QueuePresentFailed,
 };
 
 struct FrameData {
 	VkCommandPool _command_pool;
 	VkCommandBuffer _main_command_buffer;
+
+    VkSemaphore _swapchain_ready_semaphore, _render_finished_semaphore;
+	VkFence _render_fence;
 };
 
 struct VkEngine {
@@ -38,8 +53,6 @@ struct VkEngine {
     void cleanup();
 
 private:
-    void draw();
-
     std::optional<EngineInitError> create_swapchain(uint32_t width, uint32_t height);
     void destroy_swapchain();
 
@@ -47,6 +60,8 @@ private:
 	std::optional<EngineInitError> init_swapchain();
 	std::optional<EngineInitError> init_commands();
 	std::optional<EngineInitError> init_sync_structures();
+
+    std::optional<EngineRunError> draw();
 
     FrameData& get_current_frame() {
         return _frames[_frame_number % FRAME_OVERLAP];
@@ -81,6 +96,9 @@ private:
     VkExtent2D _window_extent = { 0 , 0 };
     struct SDL_Window* _window = nullptr;
 };
+
+// TODO: Result type instead of Optional, easy switch
+// With an abstraction for the `if (err) {print; return;}` case
 
 // TODO: Idead, VkCommandBuffer state-machine abstraction
 // TODO: 3 queue families, one for drawing the frame, one for async compute, the other for data transfer.
