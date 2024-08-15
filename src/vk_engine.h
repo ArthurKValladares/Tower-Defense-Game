@@ -26,6 +26,8 @@ enum class EngineInitError {
     Vk_CreateCommandBufferFailed,
     Vk_CreateFenceFailed,
     Vk_CreateSemaphoreFailed,
+    Vk_CreateDrawImageFailed,
+    Vk_CreateDrawImageViewFailed,
 };
 
 enum class EngineRunError {
@@ -105,7 +107,7 @@ private:
 
     // Memory Allocator
     VmaAllocator _allocator;
-    
+
     // Vulkan Swapchain Data
     VkSwapchainKHR _swapchain;
 	VkFormat _swapchain_image_format;
@@ -117,6 +119,10 @@ private:
     FrameData _frames[FRAME_OVERLAP];
 	VkQueue _graphics_queue;
 	uint32_t _graphics_queue_family;
+
+    // Draw data
+	AllocatedImage _draw_image;
+	VkExtent2D _draw_extent;
 
     // Window Data
     VkExtent2D _window_extent = { 0 , 0 };

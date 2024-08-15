@@ -157,7 +157,50 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 }
 
 std::optional<EngineInitError> VkEngine::init_swapchain() {
-    return create_swapchain(_window_extent.width, _window_extent.height);;
+    const std::optional<EngineInitError> create_swapchain_result = create_swapchain(_window_extent.width, _window_extent.height);
+    if (create_swapchain_result.has_value()) {
+        return create_swapchain_result;
+    }
+
+	VkExtent3D draw_image_extent = {
+		_window_extent.width,
+		_window_extent.height,
+		1
+	};
+
+	// NOTE: We use a hard-coded 64bit image format for the draw image for the extra precision
+	_draw_image.image_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	_draw_image.image_extent = draw_image_extent;
+
+	VkImageUsageFlags draw_image_usages{};
+	draw_image_usages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	draw_image_usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	draw_image_usages |= VK_IMAGE_USAGE_STORAGE_BIT;
+	draw_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	VkImageCreateInfo draw_img_info = vkinit::image_create_info(_draw_image.image_format, draw_image_usages, draw_image_extent);
+
+	VmaAllocationCreateInfo draw_img_alloc_info = {};
+	draw_img_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	draw_img_alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	if(vmaCreateImage(_allocator, &draw_img_info, &draw_img_alloc_info, &_draw_image.image, &_draw_image.allocation, nullptr)) {
+        std::print(INIT_ERROR_STRING, "Could not create draw Image");
+        return EngineInitError::Vk_CreateDrawImageFailed;
+    }
+
+	VkImageViewCreateInfo draw_img_view_info = vkinit::image_view_create_info(_draw_image.image_format, _draw_image.image, VK_IMAGE_ASPECT_COLOR_BIT);
+	if (vkCreateImageView(_device, &draw_img_view_info, nullptr, &_draw_image.image_view)) {
+        std::print(INIT_ERROR_STRING, "Could not create draw ImageView");
+        return EngineInitError::Vk_CreateDrawImageViewFailed;
+    }
+
+	_main_deletion_queue.push_function([=]() {
+		vkDestroyImageView(_device, _draw_image.image_view, nullptr);
+		vmaDestroyImage(_allocator, _draw_image.image, _draw_image.allocation);
+	});
+
+    return std::nullopt;
 }
 
 std::optional<EngineInitError> VkEngine::init_commands() {
@@ -318,6 +361,10 @@ std::optional<EngineRunError> VkEngine::draw() {
         return EngineRunError::Vk_ResetFenceFailed;
     }
 
+    // TODO: Will need to be configurable in the future
+    _draw_extent.width = _draw_image.image_extent.width;
+	_draw_extent.height = _draw_image.image_extent.height;
+
     // Request image from the swapchain
 	uint32_t swapchain_image_index;
 	if (vkAcquireNextImageKHR(_device, _swapchain, seconds_to_nanoseconds(1), get_current_frame()._swapchain_ready_semaphore, nullptr, &swapchain_image_index)) {
@@ -337,20 +384,27 @@ std::optional<EngineRunError> VkEngine::draw() {
         return EngineRunError::Vk_BeginCommandBufferFailed;
     }
 
+    // Prepare draw image to be rendered to
+    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
     // Rendering commands
     {
-	    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
 	    VkClearColorValue clearValue;
 	    float flash = std::abs(std::sin(_frame_number / 120.f));
 	    clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
 	    VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
 
-	    vkCmdClearColorImage(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-
-	    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	    vkCmdClearColorImage(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
     }
+
+    // Prepare draw image to write into swapchain image, execute copy, prepare swapchain image to present
+	vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    vkutil::copy_image_to_image(cmd, _draw_image.image, _swapchain_images[swapchain_image_index], _draw_extent, _swapchain_extent);
+
+    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     // End command buffer and submit queue
 	if (vkEndCommandBuffer(cmd)) {

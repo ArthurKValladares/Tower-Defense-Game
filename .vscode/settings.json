@@ -74,6 +74,11 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "print": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "cinttypes": "cpp",
+        "cstdarg": "cpp",
+        "deque": "cpp",
+        "numeric": "cpp",
+        "unordered_set": "cpp"
     }
 }
