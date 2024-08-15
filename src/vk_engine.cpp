@@ -11,6 +11,10 @@
 #include <SDL3/SDL_vulkan.h>
 #include <VkBootstrap.h>
 
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_vulkan.h"
+
 #include <print>
 #include <thread>
 #include <chrono>
@@ -223,29 +227,46 @@ std::optional<EngineInitError> VkEngine::init_commands() {
         }
 	}
 
+    // Immediate structures
+    VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_imm_command_pool));
+
+	VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(_imm_command_pool, 1);
+	VK_CHECK(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_imm_command_buffer));
+
+	_main_deletion_queue.push_function([=]() { 
+	    vkDestroyCommandPool(_device, _imm_command_pool, nullptr);
+	});
+
     return std::nullopt;
 }
 
 std::optional<EngineInitError> VkEngine::init_sync_structures() {
 	// Fence starts signalled so we can wait on it on the first frame
-	VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-	VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+	VkFenceCreateInfo fence_create_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+	VkSemaphoreCreateInfo semaphore_create_info = vkinit::semaphore_create_info();
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
-		if(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_frames[i]._render_fence)) {
+		if(vkCreateFence(_device, &fence_create_info, nullptr, &_frames[i]._render_fence)) {
             std::print(INIT_ERROR_STRING, "Could not create Fence");
             return EngineInitError::Vk_CreateFenceFailed;
         }
 
-		if (vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._swapchain_ready_semaphore)) {
+		if (vkCreateSemaphore(_device, &semaphore_create_info, nullptr, &_frames[i]._swapchain_ready_semaphore)) {
             std::print(INIT_ERROR_STRING, "Could not swapchain Semaphore");
             return EngineInitError::Vk_CreateSemaphoreFailed;
         }
-		if (vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._render_finished_semaphore)) {
+		if (vkCreateSemaphore(_device, &semaphore_create_info, nullptr, &_frames[i]._render_finished_semaphore)) {
             std::print(INIT_ERROR_STRING, "Could not render Semaphore");
             return EngineInitError::Vk_CreateSemaphoreFailed;
         }
 	}
+
+    // Immediate structures
+    VK_CHECK(vkCreateFence(_device, &fence_create_info, nullptr, &_imm_fence));
+
+	_main_deletion_queue.push_function([=]() {
+        vkDestroyFence(_device, _imm_fence, nullptr);
+    });
 
     return std::nullopt;
 }
@@ -337,6 +358,67 @@ void VkEngine::init_pipelines() {
     init_background_pipelines();
 }
 
+void VkEngine::init_imgui()
+{
+    // Create Imgui-exclusice Descriptor pool
+	// NOTE: This pool is huge, but copied from demo
+	VkDescriptorPoolSize pool_sizes[] = { 
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VkDescriptorPool imgui_pool;
+	VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &imgui_pool));
+
+	// Initialize Imgui library
+	ImGui::CreateContext();
+
+	ImGui_ImplSDL3_InitForVulkan(_window);
+
+	ImGui_ImplVulkan_InitInfo vulkan_init_info = {};
+	vulkan_init_info.Instance = _instance;
+	vulkan_init_info.PhysicalDevice = _chosen_gpu;
+	vulkan_init_info.Device = _device;
+	vulkan_init_info.Queue = _graphics_queue;
+	vulkan_init_info.DescriptorPool = imgui_pool;
+	vulkan_init_info.MinImageCount = 3;
+	vulkan_init_info.ImageCount = 3;
+	vulkan_init_info.UseDynamicRendering = true;
+
+	vulkan_init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+	vulkan_init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    // NOTE: We draw imgui directly into the swapchain. Maybe it should also render to texture later?
+	vulkan_init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchain_image_format;
+
+	vulkan_init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+	ImGui_ImplVulkan_Init(&vulkan_init_info);
+
+	ImGui_ImplVulkan_CreateFontsTexture();
+
+	// Cleanup
+	_main_deletion_queue.push_function([=]() {
+		ImGui_ImplVulkan_Shutdown();
+		vkDestroyDescriptorPool(_device, imgui_pool, nullptr);
+	});
+}
+
 std::optional<EngineInitError> VkEngine::init() {
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -359,6 +441,7 @@ std::optional<EngineInitError> VkEngine::init() {
     init_sync_structures();
     init_descriptors();
     init_pipelines();
+    init_imgui();
 
     _is_initialized = true;
 
@@ -388,6 +471,25 @@ void VkEngine::cleanup() {
 
         SDL_DestroyWindow(_window);
     }
+}
+
+void VkEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
+{
+    VK_CHECK(vkWaitForFences(_device, 1, &_imm_fence, true, 9999999999));
+	VK_CHECK(vkResetFences(_device, 1, &_imm_fence));
+	
+	VkCommandBuffer cmd = _imm_command_buffer;
+	VkCommandBufferBeginInfo cmd_begin_info = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    VK_CHECK(vkResetCommandBuffer(_imm_command_buffer, 0));
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmd_begin_info));
+    {
+	    function(cmd);
+    }
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkCommandBufferSubmitInfo cmd_info = vkinit::command_buffer_submit_info(cmd);
+	VkSubmitInfo2 submit = vkinit::submit_info(&cmd_info, nullptr, nullptr);
+	VK_CHECK(vkQueueSubmit2(_graphics_queue, 1, &submit, _imm_fence));
 }
 
 void VkEngine::run() {
@@ -424,9 +526,8 @@ void VkEngine::run() {
                     break;
                 }
             }
-            if (sdl_event.type == SDL_EVENT_QUIT) {
-                should_quit = true;
-            }
+
+            ImGui_ImplSDL3_ProcessEvent(&sdl_event);
         }
 
         if (_stop_rendering) {
@@ -434,9 +535,30 @@ void VkEngine::run() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         } else {
+            // Setup Imgui rendering
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL3_NewFrame();
+            ImGui::NewFrame();
+
+            ImGui::ShowDemoWindow();
+
+            ImGui::Render();
+
+            // Main frame rendering
             draw();
         }
     }
+}
+
+void VkEngine::draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view) {
+    VkRenderingAttachmentInfo color_attachment = vkinit::rendering_attachment_info(target_image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo rendering_info = vkinit::rendering_info(_swapchain_extent, &color_attachment, nullptr);
+
+	vkCmdBeginRendering(cmd, &rendering_info);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+	vkCmdEndRendering(cmd);
 }
 
 std::optional<EngineRunError> VkEngine::draw() {
@@ -490,9 +612,16 @@ std::optional<EngineRunError> VkEngine::draw() {
 	vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
+    // Copy Draw image to swapchain
     vkutil::copy_image_to_image(cmd, _draw_image.image, _swapchain_images[swapchain_image_index], _draw_extent, _swapchain_extent);
 
-    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // Transition swapchain image layout to Attachment Optimal so we can draw to it
+	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	draw_imgui(cmd,  _swapchain_image_views[swapchain_image_index]);
+
+	// Transition swapchain image to presentable format
+    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     // End command buffer and submit queue
 	if (vkEndCommandBuffer(cmd)) {

@@ -89,12 +89,16 @@ private:
     void init_descriptors();
     void init_pipelines();
 	void init_background_pipelines();
+    void init_imgui();
 
+    void draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view);
     std::optional<EngineRunError> draw();
 
     FrameData& get_current_frame() {
         return _frames[_frame_number % FRAME_OVERLAP];
     };
+
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 private:
     // Engine Data
@@ -133,6 +137,11 @@ private:
     // Pipeline data
     VkPipeline _gradient_pipeline;
 	VkPipelineLayout _gradient_pipeline_layout;
+
+    // Immediate submit data
+    VkFence _imm_fence;
+    VkCommandBuffer _imm_command_buffer;
+    VkCommandPool _imm_command_pool;
 
     // Draw data
 	AllocatedImage _draw_image;
