@@ -3,6 +3,9 @@
 #include "vk_initializers.h"
 #include "vk_image.h"
 
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <VkBootstrap.h>
@@ -123,6 +126,18 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 	_device = vkb_device.device;
 	_chosen_gpu = vkb_physical_device.physical_device;
 
+    // Create Allocator
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = _chosen_gpu;
+    allocatorInfo.device = _device;
+    allocatorInfo.instance = _instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &_allocator);
+
+    _main_deletion_queue.push_function([&]() {
+        vmaDestroyAllocator(_allocator);
+    });
+
     // Create Graphics Queue
     vkb::Result<VkQueue> graphics_queue_result = vkb_device.get_queue(vkb::QueueType::graphics);
     if (!graphics_queue_result.has_value()) {
@@ -229,6 +244,8 @@ void VkEngine::cleanup() {
 		    vkDestroySemaphore(_device ,_frames[i]._swapchain_ready_semaphore, nullptr);
 		}
 
+        _main_deletion_queue.flush();
+
         destroy_swapchain();
 
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
@@ -295,6 +312,7 @@ std::optional<EngineRunError> VkEngine::draw() {
         std::print(INIT_ERROR_STRING, "Could not wait on render fence");
         return EngineRunError::Vk_WaitOnFenceFailed;
     }
+    get_current_frame()._deletion_queue.flush();
 	if (vkResetFences(_device, 1, &get_current_frame()._render_fence)) {
         std::print(INIT_ERROR_STRING, "Could not reset render fence");
         return EngineRunError::Vk_ResetFenceFailed;

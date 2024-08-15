@@ -2,6 +2,8 @@
 
 #include <optional>
 #include <vector>
+#include <deque>
+#include <functional>
 
 #include "vk_types.h"
 
@@ -36,12 +38,33 @@ enum class EngineRunError {
     Vk_QueuePresentFailed,
 };
 
+struct DeletionQueue
+{
+    // TODO: Better implementation would store arrays of vulkan handles of various types such as VkImage/VkBuffer/etc
+	std::deque<std::function<void()>> deletors;
+
+	void push_function(std::function<void()>&& function) {
+		deletors.push_back(function);
+	}
+
+	void flush() {
+		// Delete in FILO order
+		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+			(*it)();
+		}
+
+		deletors.clear();
+	}
+};
+
 struct FrameData {
 	VkCommandPool _command_pool;
 	VkCommandBuffer _main_command_buffer;
 
     VkSemaphore _swapchain_ready_semaphore, _render_finished_semaphore;
 	VkFence _render_fence;
+
+    DeletionQueue _deletion_queue;
 };
 
 struct VkEngine {
@@ -80,6 +103,9 @@ private:
 	VkDevice _device;
 	VkSurfaceKHR _surface;
 
+    // Memory Allocator
+    VmaAllocator _allocator;
+    
     // Vulkan Swapchain Data
     VkSwapchainKHR _swapchain;
 	VkFormat _swapchain_image_format;
@@ -95,6 +121,8 @@ private:
     // Window Data
     VkExtent2D _window_extent = { 0 , 0 };
     struct SDL_Window* _window = nullptr;
+
+    DeletionQueue _main_deletion_queue;
 };
 
 // TODO: Result type instead of Optional, easy switch
