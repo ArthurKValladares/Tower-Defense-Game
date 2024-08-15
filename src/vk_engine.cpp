@@ -2,6 +2,7 @@
 #include "vk_engine.h"
 #include "vk_initializers.h"
 #include "vk_image.h"
+#include "vk_pipelines.h"
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
@@ -249,6 +250,93 @@ std::optional<EngineInitError> VkEngine::init_sync_structures() {
     return std::nullopt;
 }
 
+void VkEngine::init_descriptors() {
+    // Create a descriptor pool that holds 10 storage image descriptors
+	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
+	{
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
+	};
+	_global_descriptor_allocator.init_pool(_device, 10, sizes);
+
+    // Create the descriptor layout for our compute shader
+    // i.e. 1 descriptor of storage image at binding 0
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    _draw_image_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+
+    // Allocate set for that layout
+    _draw_image_descriptors = _global_descriptor_allocator.allocate(_device, _draw_image_descriptor_layout);	
+
+    // Write to the descriptor set we allocated (i.e. set our draw image as the required storage image)
+	VkDescriptorImageInfo img_info{};
+	img_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	img_info.imageView = _draw_image.image_view;
+	
+	VkWriteDescriptorSet draw_image_write = {};
+	draw_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	draw_image_write.pNext = nullptr;
+	
+	draw_image_write.dstBinding = 0;
+	draw_image_write.dstSet = _draw_image_descriptors;
+	draw_image_write.descriptorCount = 1;
+	draw_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	draw_image_write.pImageInfo = &img_info;
+
+	vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, nullptr);
+
+    // Cleanup
+	_main_deletion_queue.push_function([&]() {
+		_global_descriptor_allocator.destroy_pool(_device);
+
+		vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
+	});
+}
+
+void VkEngine::init_background_pipelines() {
+    // Create pipeline layout
+    VkPipelineLayoutCreateInfo compute_layout{};
+	compute_layout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	compute_layout.pNext = nullptr;
+	compute_layout.pSetLayouts = &_draw_image_descriptor_layout;
+	compute_layout.setLayoutCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &compute_layout, nullptr, &_gradient_pipeline_layout));
+
+    // Create pipeline
+	VkShaderModule compute_draw_shader;
+	if (!vkutil::load_shader_module("../shaders/gradient.comp.spv", _device, &compute_draw_shader))
+	{
+		std::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stage_info{};
+	stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_info.pNext = nullptr;
+	stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stage_info.module = compute_draw_shader;
+	stage_info.pName = "main";
+
+	VkComputePipelineCreateInfo compute_pipeline_createInfo{};
+	compute_pipeline_createInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	compute_pipeline_createInfo.pNext = nullptr;
+	compute_pipeline_createInfo.layout = _gradient_pipeline_layout;
+	compute_pipeline_createInfo.stage = stage_info;
+	
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &compute_pipeline_createInfo, nullptr, &_gradient_pipeline));
+
+    // Cleanup
+    vkDestroyShaderModule(_device, compute_draw_shader, nullptr);
+
+	_main_deletion_queue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _gradient_pipeline_layout, nullptr);
+		vkDestroyPipeline(_device, _gradient_pipeline, nullptr);
+		});
+}
+
+void VkEngine::init_pipelines() {
+    init_background_pipelines();
+}
+
 std::optional<EngineInitError> VkEngine::init() {
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -269,6 +357,8 @@ std::optional<EngineInitError> VkEngine::init() {
     init_swapchain();
     init_commands();
     init_sync_structures();
+    init_descriptors();
+    init_pipelines();
 
     _is_initialized = true;
 
@@ -389,13 +479,11 @@ std::optional<EngineRunError> VkEngine::draw() {
 
     // Rendering commands
     {
-	    VkClearColorValue clearValue;
-	    float flash = std::abs(std::sin(_frame_number / 120.f));
-	    clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+	    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradient_pipeline);
+	    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradient_pipeline_layout, 0, 1, &_draw_image_descriptors, 0, nullptr);
 
-	    VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
-
-	    vkCmdClearColorImage(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+	    // Divide image extent by compute shader block size
+	    vkCmdDispatch(cmd, std::ceil(_draw_extent.width / 16.0), std::ceil(_draw_extent.height / 16.0), 1);
     }
 
     // Prepare draw image to write into swapchain image, execute copy, prepare swapchain image to present

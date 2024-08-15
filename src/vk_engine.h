@@ -6,6 +6,7 @@
 #include <functional>
 
 #include "vk_types.h"
+#include "vk_descriptors.h"
 
 #define FRAME_OVERLAP 2
 
@@ -85,6 +86,9 @@ private:
 	std::optional<EngineInitError> init_swapchain();
 	std::optional<EngineInitError> init_commands();
 	std::optional<EngineInitError> init_sync_structures();
+    void init_descriptors();
+    void init_pipelines();
+	void init_background_pipelines();
 
     std::optional<EngineRunError> draw();
 
@@ -120,6 +124,16 @@ private:
 	VkQueue _graphics_queue;
 	uint32_t _graphics_queue_family;
 
+    // Descriptor data
+    DescriptorAllocator _global_descriptor_allocator;
+
+	VkDescriptorSet _draw_image_descriptors;
+	VkDescriptorSetLayout _draw_image_descriptor_layout;
+
+    // Pipeline data
+    VkPipeline _gradient_pipeline;
+	VkPipelineLayout _gradient_pipeline_layout;
+
     // Draw data
 	AllocatedImage _draw_image;
 	VkExtent2D _draw_extent;
@@ -131,8 +145,8 @@ private:
     DeletionQueue _main_deletion_queue;
 };
 
-// TODO: Result type instead of Optional, easy switch
-// With an abstraction for the `if (err) {print; return;}` case
+// TODO: Instead of all the optional stuff that is vbloating the code, just print an error and abort,
+// Like VK_CHECK - which I should use more
 
 // TODO: Idead, VkCommandBuffer state-machine abstraction
 // TODO: 3 queue families, one for drawing the frame, one for async compute, the other for data transfer.

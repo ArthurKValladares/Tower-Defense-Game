@@ -5,7 +5,6 @@ add_subdirectory(src)
 add_subdirectory(vendor)
 
 find_package(Vulkan REQUIRED)
-
 target_link_libraries(src PRIVATE vendor ${Vulkan_LIBRARIES})
 
 # Compile shaders
