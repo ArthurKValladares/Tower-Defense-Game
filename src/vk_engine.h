@@ -8,6 +8,8 @@
 #include "vk_types.h"
 #include "vk_descriptors.h"
 
+#include <glm/vec4.hpp>
+
 #define FRAME_OVERLAP 2
 
 enum class EngineInitError {
@@ -39,6 +41,22 @@ enum class EngineRunError {
     Vk_EndCommandBufferFailed,
     Vk_QueueSubmitFailed,
     Vk_QueuePresentFailed,
+};
+
+struct ComputePushConstants {
+	glm::vec4 data1;
+	glm::vec4 data2;
+	glm::vec4 data3;
+	glm::vec4 data4;
+};
+
+struct ComputeEffect {
+    const char* name;
+
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+
+	ComputePushConstants data;
 };
 
 struct DeletionQueue
@@ -135,8 +153,8 @@ private:
 	VkDescriptorSetLayout _draw_image_descriptor_layout;
 
     // Pipeline data
-    VkPipeline _gradient_pipeline;
-	VkPipelineLayout _gradient_pipeline_layout;
+    std::vector<ComputeEffect> _compute_effects;
+    int _current_compute_effect{0};
 
     // Immediate submit data
     VkFence _imm_fence;

@@ -139,7 +139,7 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &_allocator);
 
-    _main_deletion_queue.push_function([&]() {
+    _main_deletion_queue.push_function([=]() {
         vmaDestroyAllocator(_allocator);
     });
 
@@ -306,7 +306,7 @@ void VkEngine::init_descriptors() {
 	vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, nullptr);
 
     // Cleanup
-	_main_deletion_queue.push_function([&]() {
+	_main_deletion_queue.push_function([=]() {
 		_global_descriptor_allocator.destroy_pool(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
@@ -321,37 +321,78 @@ void VkEngine::init_background_pipelines() {
 	compute_layout.pSetLayouts = &_draw_image_descriptor_layout;
 	compute_layout.setLayoutCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &compute_layout, nullptr, &_gradient_pipeline_layout));
+    VkPushConstantRange push_constant{};
+    push_constant.offset = 0;
+    push_constant.size = sizeof(ComputePushConstants) ;
+    push_constant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Create pipeline
-	VkShaderModule compute_draw_shader;
-	if (!vkutil::load_shader_module("../shaders/gradient.comp.spv", _device, &compute_draw_shader))
-	{
-		std::print("Error when building the compute shader \n");
-	}
+    compute_layout.pPushConstantRanges = &push_constant;
+    compute_layout.pushConstantRangeCount = 1;
+
+    VkPipelineLayout compute_pipeline_layout;
+	VK_CHECK(vkCreatePipelineLayout(_device, &compute_layout, nullptr, &compute_pipeline_layout));
+
+    // Create pipelines
+    ComputeEffect gradient;
+    gradient.layout = compute_pipeline_layout;
+    gradient.name = "gradient";
+    gradient.data = {};
+    gradient.data.data1 = glm::vec4(1, 0, 0, 1);
+    gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+
+    ComputeEffect sky;
+    sky.layout = compute_pipeline_layout;
+    sky.name = "sky";
+    sky.data = {};
+    sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
+
+    VkShaderModule gradient_compute_shader;
+    VkShaderModule sky_compute_shader;
+
+    if (!vkutil::load_shader_module("../shaders/gradient.comp.spv", _device, &gradient_compute_shader))
+    {
+        std::print("Error when building the compute shader \n");
+        abort();
+    }
+    if (!vkutil::load_shader_module("../shaders/sky.comp.spv", _device, &sky_compute_shader))
+    {
+        std::print("Error when building the compute shader \n");
+        abort();
+    }
 
 	VkPipelineShaderStageCreateInfo stage_info{};
 	stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stage_info.pNext = nullptr;
 	stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stage_info.module = compute_draw_shader;
+    stage_info.module = gradient_compute_shader;
 	stage_info.pName = "main";
 
 	VkComputePipelineCreateInfo compute_pipeline_createInfo{};
 	compute_pipeline_createInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 	compute_pipeline_createInfo.pNext = nullptr;
-	compute_pipeline_createInfo.layout = _gradient_pipeline_layout;
+	compute_pipeline_createInfo.layout = compute_pipeline_layout;
 	compute_pipeline_createInfo.stage = stage_info;
-	
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &compute_pipeline_createInfo, nullptr, &_gradient_pipeline));
+
+    // The ony difference between pipelines is the shader module
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &compute_pipeline_createInfo, nullptr, &gradient.pipeline));
+
+    compute_pipeline_createInfo.stage.module = sky_compute_shader;
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &compute_pipeline_createInfo, nullptr, &sky.pipeline));
+
+    // Add the compute effects into the array
+    _compute_effects.push_back(gradient);
+    _compute_effects.push_back(sky);
 
     // Cleanup
-    vkDestroyShaderModule(_device, compute_draw_shader, nullptr);
+    vkDestroyShaderModule(_device, gradient_compute_shader, nullptr);
+    vkDestroyShaderModule(_device, sky_compute_shader, nullptr);
 
-	_main_deletion_queue.push_function([&]() {
-		vkDestroyPipelineLayout(_device, _gradient_pipeline_layout, nullptr);
-		vkDestroyPipeline(_device, _gradient_pipeline, nullptr);
-		});
+	_main_deletion_queue.push_function([=]() {
+		vkDestroyPipelineLayout(_device, compute_pipeline_layout, nullptr);
+
+		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
+        vkDestroyPipeline(_device, sky.pipeline, nullptr);
+	});
 }
 
 void VkEngine::init_pipelines() {
@@ -540,7 +581,19 @@ void VkEngine::run() {
             ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
 
-            ImGui::ShowDemoWindow();
+            if (ImGui::Begin("Compute Effect")) {
+                ComputeEffect& selected = _compute_effects[_current_compute_effect];
+            
+                ImGui::Text("Selected effect: ", selected.name);
+            
+                ImGui::SliderInt("Effect Index", &_current_compute_effect, 0, _compute_effects.size() - 1);
+            
+                ImGui::InputFloat4("data1",(float*)& selected.data.data1);
+                ImGui::InputFloat4("data2",(float*)& selected.data.data2);
+                ImGui::InputFloat4("data3",(float*)& selected.data.data3);
+                ImGui::InputFloat4("data4",(float*)& selected.data.data4);
+		    }
+		    ImGui::End();
 
             ImGui::Render();
 
@@ -601,8 +654,16 @@ std::optional<EngineRunError> VkEngine::draw() {
 
     // Rendering commands
     {
-	    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradient_pipeline);
-	    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradient_pipeline_layout, 0, 1, &_draw_image_descriptors, 0, nullptr);
+        ComputeEffect& effect = _compute_effects[_current_compute_effect];
+
+	    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+	    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &_draw_image_descriptors, 0, nullptr);
+
+        ComputePushConstants pc;
+	    pc.data1 = glm::vec4(1, 0, 0, 1);
+	    pc.data2 = glm::vec4(0, 0, 1, 1);
+
+        vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &pc);
 
 	    // Divide image extent by compute shader block size
 	    vkCmdDispatch(cmd, std::ceil(_draw_extent.width / 16.0), std::ceil(_draw_extent.height / 16.0), 1);
