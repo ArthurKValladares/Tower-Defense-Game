@@ -1,3 +1,15 @@
+# Dear ImGui
+set(IMGUI_DIR ../vendor/imgui)
+include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
+set(IMGUI_SRCS
+    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+)
+
 add_executable(src 
     main.cpp
     vk_engine.cpp
@@ -6,6 +18,7 @@ add_executable(src
     vk_descriptors.cpp
     vk_string.cpp
     vk_pipelines.cpp
+    ${IMGUI_SRCS}
 )
 
 target_compile_features(src PRIVATE cxx_std_23)
