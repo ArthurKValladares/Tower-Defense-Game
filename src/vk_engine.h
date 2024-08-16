@@ -107,9 +107,13 @@ private:
     void init_descriptors();
     void init_pipelines();
 	void init_background_pipelines();
+    void init_triangle_pipeline();
     void init_imgui();
 
     void draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view);
+    void draw_background(VkCommandBuffer cmd);
+    void draw_geometry(VkCommandBuffer cmd);
+
     std::optional<EngineRunError> draw();
 
     FrameData& get_current_frame() {
@@ -155,6 +159,9 @@ private:
     // Pipeline data
     std::vector<ComputeEffect> _compute_effects;
     int _current_compute_effect{0};
+    // Graphics pipeline data
+    VkPipelineLayout _triangle_pipeline_layout;
+    VkPipeline _triangle_pipeline;
 
     // Immediate submit data
     VkFence _imm_fence;

@@ -395,8 +395,51 @@ void VkEngine::init_background_pipelines() {
 	});
 }
 
+void VkEngine::init_triangle_pipeline() {
+    // Load shaders
+    VkShaderModule triangle_frag_shader;
+	if (!vkutil::load_shader_module("../shaders/colored_triangle.frag.spv", _device, &triangle_frag_shader)) {
+		std::print("Error when building the triangle fragment shader module");
+	}
+
+	VkShaderModule triangle_vertex_shader;
+	if (!vkutil::load_shader_module("../shaders/colored_triangle.vert.spv", _device, &triangle_vertex_shader)) {
+		std::print("Error when building the triangle vertex shader module");
+	}
+	
+    // Create layout
+	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_triangle_pipeline_layout));
+
+    // Create pipeline
+    PipelineBuilder pipelineBuilder;
+
+	pipelineBuilder._pipeline_layout = _triangle_pipeline_layout;
+	pipelineBuilder.set_shaders(triangle_vertex_shader, triangle_frag_shader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.disable_depthtest();
+	pipelineBuilder.set_color_attachment_format(_draw_image.image_format);
+	pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+	_triangle_pipeline = pipelineBuilder.build_pipeline(_device);
+
+	// Cleanup
+	vkDestroyShaderModule(_device, triangle_frag_shader, nullptr);
+	vkDestroyShaderModule(_device, triangle_vertex_shader, nullptr);
+
+	_main_deletion_queue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _triangle_pipeline_layout, nullptr);
+		vkDestroyPipeline(_device, _triangle_pipeline, nullptr);
+	});
+}
+
 void VkEngine::init_pipelines() {
     init_background_pipelines();
+    init_triangle_pipeline();
 }
 
 void VkEngine::init_imgui()
@@ -616,6 +659,49 @@ void VkEngine::draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view) {
 	vkCmdEndRendering(cmd);
 }
 
+void VkEngine::draw_background(VkCommandBuffer cmd) {
+    ComputeEffect& effect = _compute_effects[_current_compute_effect];
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &_draw_image_descriptors, 0, nullptr);
+
+    vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
+
+    // Divide image extent by compute shader block size
+    vkCmdDispatch(cmd, std::ceil(_draw_extent.width / 16.0), std::ceil(_draw_extent.height / 16.0), 1);
+}
+
+void VkEngine::draw_geometry(VkCommandBuffer cmd) {
+	VkRenderingAttachmentInfo colorAttachment = vkinit::rendering_attachment_info(_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_draw_extent, &colorAttachment, nullptr);
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _triangle_pipeline);
+
+	VkViewport viewport = {};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = _draw_extent.width;
+	viewport.height = _draw_extent.height;
+	viewport.minDepth = 0.f;
+	viewport.maxDepth = 1.f;
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D scissor = {};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent.width = _draw_extent.width;
+	scissor.extent.height = _draw_extent.height;
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	vkCmdDraw(cmd, 3, 1, 0, 0);
+
+	vkCmdEndRendering(cmd);
+}
+
 std::optional<EngineRunError> VkEngine::draw() {
     // Wait until the gpu has finished rendering the last frame on the current index
 	if (vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, seconds_to_nanoseconds(1))) {
@@ -654,21 +740,16 @@ std::optional<EngineRunError> VkEngine::draw() {
     // Prepare draw image to be rendered to
     vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-    // Rendering commands
-    {
-        ComputeEffect& effect = _compute_effects[_current_compute_effect];
+    // To draw with compute, we must be in general format
+    draw_background(cmd);
 
-	    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
-	    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &_draw_image_descriptors, 0, nullptr);
+    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
-
-	    // Divide image extent by compute shader block size
-	    vkCmdDispatch(cmd, std::ceil(_draw_extent.width / 16.0), std::ceil(_draw_extent.height / 16.0), 1);
-    }
+    // To draw with graphics pipeline, we must be in color attachment format
+    draw_geometry(cmd);
 
     // Prepare draw image to write into swapchain image, execute copy, prepare swapchain image to present
-	vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // Copy Draw image to swapchain

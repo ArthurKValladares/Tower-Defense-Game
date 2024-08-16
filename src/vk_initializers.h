@@ -19,4 +19,7 @@ VkRenderingAttachmentInfo rendering_attachment_info(
     VkImageView view, VkClearValue* clear ,VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 VkRenderingInfo rendering_info(VkExtent2D render_extent, VkRenderingAttachmentInfo* color_attachment,
     VkRenderingAttachmentInfo* depth_attachment);
+VkPipelineLayoutCreateInfo pipeline_layout_create_info();
+VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage,
+    VkShaderModule shader_module, const char* entry = "main");
 };
