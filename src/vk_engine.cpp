@@ -679,6 +679,8 @@ GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vert
 	memcpy(data, vertices.data(), vertex_buffer_size);
 	memcpy((char*)data + vertex_buffer_size, indices.data(), index_buffer_size);
 
+    // NOTE: Not very efficient, we are waiting for the GPU command to fully execute before continuing with our CPU side logic.
+    //Should be put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
 	immediate_submit([&](VkCommandBuffer cmd) {
 		VkBufferCopy vertex_copy{ 0 };
 		vertex_copy.dstOffset = 0;
