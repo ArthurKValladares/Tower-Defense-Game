@@ -4,6 +4,7 @@
 #include <vector>
 #include <deque>
 #include <functional>
+#include <span>
 
 #include "vk_types.h"
 #include "vk_descriptors.h"
@@ -107,7 +108,7 @@ private:
     void init_descriptors();
     void init_pipelines();
 	void init_background_pipelines();
-    void init_triangle_pipeline();
+    void init_mesh_pipeline();
     void init_imgui();
 
     void draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view);
@@ -121,6 +122,11 @@ private:
     };
 
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+    AllocatedBuffer create_buffer(size_t alloc_size, VkBufferUsageFlags usage, VmaMemoryUsage memory_usage);
+    void destroy_buffer(const AllocatedBuffer& buffer);
+
+    void init_mesh_data();
+    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
 private:
     // Engine Data
@@ -159,9 +165,12 @@ private:
     // Pipeline data
     std::vector<ComputeEffect> _compute_effects;
     int _current_compute_effect{0};
+
     // Graphics pipeline data
-    VkPipelineLayout _triangle_pipeline_layout;
-    VkPipeline _triangle_pipeline;
+    VkPipelineLayout _mesh_pipeline_layout;
+    VkPipeline _mesh_pipeline;
+
+    GPUMeshBuffers rectangle;
 
     // Immediate submit data
     VkFence _imm_fence;
