@@ -755,20 +755,29 @@ void VkEngine::run() {
             ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
 
-            if (ImGui::Begin("Compute Effect")) {
-                ComputeEffect& selected = _compute_effects[_current_compute_effect];
-            
-                ImGui::Text("Selected effect: %s", selected.name);
-            
-                ImGui::SliderInt("Effect Index", &_current_compute_effect, 0, _compute_effects.size() - 1);
-            
-                ImGui::InputFloat4("data1", (float*) &selected.data.data1);
-                ImGui::InputFloat4("data2", (float*) &selected.data.data2);
-                ImGui::InputFloat4("data3", (float*) &selected.data.data3);
-                ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+            if (ImGui::Begin("Debug Data")) {
+                if (ImGui::TreeNode("Compute Effect")) {
+                    ComputeEffect& selected = _compute_effects[_current_compute_effect];
 
-                ImGui::End();
+                    ImGui::Text("Selected effect: %s", selected.name);
+
+                    ImGui::SliderInt("Effect Index", &_current_compute_effect, 0, _compute_effects.size() - 1);
+
+                    ImGui::InputFloat4("data1", (float*)&selected.data.data1);
+                    ImGui::InputFloat4("data2", (float*)&selected.data.data2);
+                    ImGui::InputFloat4("data3", (float*)&selected.data.data3);
+                    ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Current Mesh")) {
+                    ImGui::SliderInt("Mesh Index", &_current_mesh, 0, _test_meshes.size() - 1);
+
+                    ImGui::TreePop();
+                }
 		    }
+            ImGui::End();
 
             ImGui::Render();
 
@@ -825,7 +834,7 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	scissor.extent.height = _draw_extent.height;
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    MeshAsset& mesh_asset = *_test_meshes[2];
+    MeshAsset& mesh_asset = *_test_meshes[_current_mesh];
 
     glm::mat4 view = glm::translate(glm::vec3{ 0, 0, -5 });
     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_draw_extent.width / (float)_draw_extent.height, 0.1f, 10000.f);

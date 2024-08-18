@@ -173,6 +173,7 @@ private:
     VkPipeline _mesh_pipeline;
 
     std::vector<std::shared_ptr<MeshAsset>> _test_meshes;
+    int _current_mesh{ 0 };
 
     // Immediate submit data
     VkFence _imm_fence;
