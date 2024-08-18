@@ -8,6 +8,7 @@
 
 #include "vk_types.h"
 #include "vk_descriptors.h"
+#include "vk_loader.h"
 
 #include <glm/vec4.hpp>
 
@@ -97,6 +98,8 @@ struct VkEngine {
 
     void cleanup();
 
+    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+
 private:
     std::optional<EngineInitError> create_swapchain(uint32_t width, uint32_t height);
     void destroy_swapchain();
@@ -126,7 +129,6 @@ private:
     void destroy_buffer(const AllocatedBuffer& buffer);
 
     void init_mesh_data();
-    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
 private:
     // Engine Data
@@ -170,7 +172,7 @@ private:
     VkPipelineLayout _mesh_pipeline_layout;
     VkPipeline _mesh_pipeline;
 
-    GPUMeshBuffers rectangle;
+    std::vector<std::shared_ptr<MeshAsset>> _test_meshes;
 
     // Immediate submit data
     VkFence _imm_fence;
@@ -179,6 +181,7 @@ private:
 
     // Draw data
 	AllocatedImage _draw_image;
+    AllocatedImage _depth_image;
 	VkExtent2D _draw_extent;
 
     // Window Data

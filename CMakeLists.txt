@@ -29,3 +29,5 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
   execute_process(COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV})
 endforeach(GLSL)
 message("------- Compiling Shaders Step End -------\n")
+
+file(COPY ${PROJECT_SOURCE_DIR}/assets DESTINATION ${PROJECT_SOURCE_DIR}/build)

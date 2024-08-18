@@ -15,6 +15,9 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/transform.hpp>
+
 #include <print>
 #include <thread>
 #include <chrono>
@@ -168,6 +171,7 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
         return create_swapchain_result;
     }
 
+    // Create Draw Image
 	VkExtent3D draw_image_extent = {
 		_window_extent.width,
 		_window_extent.height,
@@ -201,9 +205,29 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
         return EngineInitError::Vk_CreateDrawImageViewFailed;
     }
 
-	_main_deletion_queue.push_function([=]() {
+    // Create Depth Image
+    _depth_image.image_format = VK_FORMAT_D32_SFLOAT;
+	_depth_image.image_extent = draw_image_extent;
+
+	VkImageUsageFlags depth_image_usages{};
+	depth_image_usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	VkImageCreateInfo depth_img_info =
+        vkinit::image_create_info(_depth_image.image_format, depth_image_usages, draw_image_extent);
+
+	vmaCreateImage(_allocator, &depth_img_info, &draw_img_alloc_info, &_depth_image.image, &_depth_image.allocation, nullptr);
+
+	VkImageViewCreateInfo depth_view_info = vkinit::image_view_create_info(_depth_image.image_format, _depth_image.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	VK_CHECK(vkCreateImageView(_device, &depth_view_info, nullptr, &_depth_image.image_view));
+
+    // Cleanup
+    _main_deletion_queue.push_function([=]() {
 		vkDestroyImageView(_device, _draw_image.image_view, nullptr);
 		vmaDestroyImage(_allocator, _draw_image.image, _draw_image.allocation);
+
+        vkDestroyImageView(_device, _depth_image.image_view, nullptr);
+		vmaDestroyImage(_allocator, _depth_image.image, _depth_image.allocation);
 	});
 
     return std::nullopt;
@@ -429,9 +453,9 @@ void VkEngine::init_mesh_pipeline() {
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
-	pipelineBuilder.disable_depthtest();
+	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 	pipelineBuilder.set_color_attachment_format(_draw_image.image_format);
-	pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+	pipelineBuilder.set_depth_format(_depth_image.image_format);
 
 	_mesh_pipeline = pipelineBuilder.build_pipeline(_device);
 
@@ -610,34 +634,14 @@ void VkEngine::destroy_buffer(const AllocatedBuffer& buffer)
 }
 
 void VkEngine::init_mesh_data() {
-    std::array<Vertex,4> rect_vertices;
-
-	rect_vertices[0].position = {0.5,-0.5, 0};
-	rect_vertices[1].position = {0.5,0.5, 0};
-	rect_vertices[2].position = {-0.5,-0.5, 0};
-	rect_vertices[3].position = {-0.5,0.5, 0};
-
-	rect_vertices[0].color = {0,0, 0,1};
-	rect_vertices[1].color = { 0.5,0.5,0.5 ,1};
-	rect_vertices[2].color = { 1,0, 0,1 };
-	rect_vertices[3].color = { 0,1, 0,1 };
-
-	std::array<uint32_t,6> rect_indices;
-
-	rect_indices[0] = 0;
-	rect_indices[1] = 1;
-	rect_indices[2] = 2;
-
-	rect_indices[3] = 2;
-	rect_indices[4] = 1;
-	rect_indices[5] = 3;
-
-	rectangle = upload_mesh(rect_indices,rect_vertices);
+    _test_meshes = load_gltf_meshes(this,"../assets/basicmesh.glb").value();
 
 	// Cleanup
-	_main_deletion_queue.push_function([&](){
-		destroy_buffer(rectangle.index_buffer);
-		destroy_buffer(rectangle.vertex_buffer);
+	_main_deletion_queue.push_function([&]() {
+        for (auto& mesh : _test_meshes) {
+	        destroy_buffer(mesh->mesh_buffers.index_buffer);
+	        destroy_buffer(mesh->mesh_buffers.vertex_buffer);
+        }
 	});
 }
 
@@ -799,8 +803,8 @@ void VkEngine::draw_background(VkCommandBuffer cmd) {
 
 void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	VkRenderingAttachmentInfo color_attachment = vkinit::rendering_attachment_info(_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-	VkRenderingInfo render_info = vkinit::rendering_info(_draw_extent, &color_attachment, nullptr);
+    VkRenderingAttachmentInfo depth_attachment = vkinit::depth_attachment_info(_depth_image.image_view);
+	VkRenderingInfo render_info = vkinit::rendering_info(_draw_extent, &color_attachment, &depth_attachment);
 	vkCmdBeginRendering(cmd, &render_info);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _mesh_pipeline);
@@ -821,14 +825,21 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	scissor.extent.height = _draw_extent.height;
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    MeshAsset& mesh_asset = *_test_meshes[2];
+
+    glm::mat4 view = glm::translate(glm::vec3{ 0, 0, -5 });
+    glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_draw_extent.width / (float)_draw_extent.height, 0.1f, 10000.f);
+	// Invert the Y axis so that we match opengl and gltf
+	projection[1][1] *= -1;
+
 	GPUDrawPushConstants push_constants;
-	push_constants.world_matrix = glm::mat4{ 1.f };
-	push_constants.vertex_buffer = rectangle.vertex_buffer_address;
+	push_constants.world_matrix = projection * view;
+	push_constants.vertex_buffer = mesh_asset.mesh_buffers.vertex_buffer_address;
 	vkCmdPushConstants(cmd, _mesh_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
-	vkCmdBindIndexBuffer(cmd, rectangle.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(cmd, mesh_asset.mesh_buffers.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+	vkCmdDrawIndexed(cmd, mesh_asset.surfaces[0].count, 1, mesh_asset.surfaces[0].start_index, 0, 0);
 
 	vkCmdEndRendering(cmd);
 }
@@ -868,13 +879,15 @@ std::optional<EngineRunError> VkEngine::draw() {
         return EngineRunError::Vk_BeginCommandBufferFailed;
     }
 
-    // Prepare draw image to be rendered to
+    // Prepare draw image to be rendered to (compute not using depth atm)
     vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
     // To draw with compute, we must be in general format
     draw_background(cmd);
 
+    // Make draw and depth image ready to be used as attachments
     vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkutil::transition_image(cmd, _depth_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     // To draw with graphics pipeline, we must be in color attachment format
     draw_geometry(cmd);

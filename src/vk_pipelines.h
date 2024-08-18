@@ -40,6 +40,7 @@ struct PipelineBuilder {
     void set_multisampling_none();
     void disable_blending();
     void disable_depthtest();
+    void enable_depthtest(bool depth_write_enable, VkCompareOp op);
 
     VkPipeline build_pipeline(VkDevice device);
 };

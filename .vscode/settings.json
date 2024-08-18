@@ -80,6 +80,11 @@
         "deque": "cpp",
         "numeric": "cpp",
         "unordered_set": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "filesystem": "cpp",
+        "memory_resource": "cpp",
+        "ranges": "cpp",
+        "stdfloat": "cpp",
+        "variant": "cpp"
     }
 }

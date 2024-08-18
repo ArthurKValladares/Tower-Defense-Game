@@ -169,6 +169,21 @@ VkRenderingAttachmentInfo vkinit::rendering_attachment_info(
     return color_attachment;
 }
 
+VkRenderingAttachmentInfo vkinit::depth_attachment_info(VkImageView view, VkImageLayout layout)
+{
+    VkRenderingAttachmentInfo depth_attachment {};
+    depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depth_attachment.pNext = nullptr;
+
+    depth_attachment.imageView = view;
+    depth_attachment.imageLayout = layout;
+    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_attachment.clearValue.depthStencil.depth = 0.f;
+
+    return depth_attachment;
+}
+
 VkRenderingInfo vkinit::rendering_info(VkExtent2D render_extent, VkRenderingAttachmentInfo* color_attachment,
     VkRenderingAttachmentInfo* depth_attachment)
 {

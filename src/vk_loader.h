@@ -2,7 +2,9 @@
 
 #include "vk_types.h"
 
-#include <unordered_map>
+#include <string>
+#include <vector>
+#include <optional>
 #include <filesystem>
 
 struct GeoSurface {
@@ -16,3 +18,6 @@ struct MeshAsset {
     std::vector<GeoSurface> surfaces;
     GPUMeshBuffers mesh_buffers;
 };
+
+class VkEngine;
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(VkEngine* engine, std::filesystem::path file_path);
