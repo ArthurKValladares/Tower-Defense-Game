@@ -444,20 +444,20 @@ void VkEngine::init_mesh_pipeline() {
 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_mesh_pipeline_layout));
 
     // Create pipeline
-    PipelineBuilder pipelineBuilder;
+    PipelineBuilder pipeline_builder;
 
-	pipelineBuilder._pipeline_layout = _mesh_pipeline_layout;
-	pipelineBuilder.set_shaders(mesh_vertex_shader, mesh_frag_shader);
-	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	pipelineBuilder.set_multisampling_none();
-	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-	pipelineBuilder.set_color_attachment_format(_draw_image.image_format);
-	pipelineBuilder.set_depth_format(_depth_image.image_format);
+	pipeline_builder._pipeline_layout = _mesh_pipeline_layout;
+	pipeline_builder.set_shaders(mesh_vertex_shader, mesh_frag_shader);
+	pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipeline_builder.set_multisampling_none();
+	pipeline_builder.disable_blending();
+	pipeline_builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipeline_builder.set_color_attachment_format(_draw_image.image_format);
+	pipeline_builder.set_depth_format(_depth_image.image_format);
 
-	_mesh_pipeline = pipelineBuilder.build_pipeline(_device);
+	_mesh_pipeline = pipeline_builder.build_pipeline(_device);
 
 	// Cleanup
 	vkDestroyShaderModule(_device, mesh_frag_shader, nullptr);
