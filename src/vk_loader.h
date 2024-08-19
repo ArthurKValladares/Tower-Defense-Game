@@ -19,5 +19,5 @@ struct MeshAsset {
     GPUMeshBuffers mesh_buffers;
 };
 
-class VkEngine;
+struct VkEngine;
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(VkEngine* engine, std::filesystem::path file_path);

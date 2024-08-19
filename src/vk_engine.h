@@ -102,6 +102,7 @@ struct VkEngine {
 
 private:
     std::optional<EngineInitError> create_swapchain(uint32_t width, uint32_t height);
+    void resize_swapchain();
     void destroy_swapchain();
 
     std::optional<EngineInitError> init_vulkan();
@@ -147,6 +148,7 @@ private:
     VmaAllocator _allocator;
 
     // Vulkan Swapchain Data
+    bool _resize_requested;
     VkSwapchainKHR _swapchain;
 	VkFormat _swapchain_image_format;
 	std::vector<VkImage> _swapchain_images;
@@ -184,6 +186,7 @@ private:
 	AllocatedImage _draw_image;
     AllocatedImage _depth_image;
 	VkExtent2D _draw_extent;
+    float _render_scale = 1.f;
 
     // Window Data
     VkExtent2D _window_extent = { 0 , 0 };

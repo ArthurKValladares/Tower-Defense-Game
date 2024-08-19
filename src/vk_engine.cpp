@@ -68,6 +68,21 @@ std::optional<EngineInitError> VkEngine::create_swapchain(uint32_t width, uint32
     return std::nullopt;
 }
 
+void VkEngine::resize_swapchain() {
+    vkDeviceWaitIdle(_device);
+
+	destroy_swapchain();
+
+	int w, h;
+	SDL_GetWindowSize(_window, &w, &h);
+	_window_extent.width = w;
+	_window_extent.height = h;
+
+	create_swapchain(_window_extent.width, _window_extent.height);
+
+	_resize_requested = false;
+}
+
 void VkEngine::destroy_swapchain() {
     vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
@@ -302,7 +317,7 @@ void VkEngine::init_descriptors() {
 	{
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
 	};
-	_global_descriptor_allocator.init_pool(_device, 10, sizes);
+	_global_descriptor_allocator.init(_device, 10, sizes);
 
     // Create the descriptor layout for our compute shader
     // i.e. 1 descriptor of storage image at binding 0
@@ -314,25 +329,15 @@ void VkEngine::init_descriptors() {
     _draw_image_descriptors = _global_descriptor_allocator.allocate(_device, _draw_image_descriptor_layout);	
 
     // Write to the descriptor set we allocated (i.e. set our draw image as the required storage image)
-	VkDescriptorImageInfo img_info{};
-	img_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	img_info.imageView = _draw_image.image_view;
-	
-	VkWriteDescriptorSet draw_image_write = {};
-	draw_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	draw_image_write.pNext = nullptr;
-	
-	draw_image_write.dstBinding = 0;
-	draw_image_write.dstSet = _draw_image_descriptors;
-	draw_image_write.descriptorCount = 1;
-	draw_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	draw_image_write.pImageInfo = &img_info;
+    DescriptorWriter writer;
+    writer.write_image(
+        0, _draw_image.image_view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-	vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, nullptr);
+    writer.update_set(_device, _draw_image_descriptors);
 
     // Cleanup
 	_main_deletion_queue.push_function([=]() {
-		_global_descriptor_allocator.destroy_pool(_device);
+		_global_descriptor_allocator.destroy_pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
 	});
@@ -542,7 +547,7 @@ std::optional<EngineInitError> VkEngine::init() {
         return EngineInitError::SDL_InitFailed;
     }
 
-    const SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+    const SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     _window_extent = get_default_window_dims();
     _window = SDL_CreateWindow(APP_NAME, _window_extent.width, _window_extent.height, window_flags);
@@ -750,12 +755,18 @@ void VkEngine::run() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         } else {
+            if (_resize_requested) {
+            	resize_swapchain();
+            }
+
             // Setup Imgui rendering
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
 
             if (ImGui::Begin("Debug Data")) {
+                ImGui::SliderFloat("Render Scale", &_render_scale, 0.3f, 1.f);
+
                 if (ImGui::TreeNode("Compute Effect")) {
                     ComputeEffect& selected = _compute_effects[_current_compute_effect];
 
@@ -866,14 +877,16 @@ std::optional<EngineRunError> VkEngine::draw() {
     }
 
     // TODO: Will need to be configurable in the future
-    _draw_extent.width = _draw_image.image_extent.width;
-	_draw_extent.height = _draw_image.image_extent.height;
+    _draw_extent.height =
+        std::min(_swapchain_extent.height, _draw_image.image_extent.height) * _render_scale;
+    _draw_extent.width =
+        std::min(_swapchain_extent.width, _draw_image.image_extent.width) * _render_scale;
 
     // Request image from the swapchain
 	uint32_t swapchain_image_index;
-	if (vkAcquireNextImageKHR(_device, _swapchain, seconds_to_nanoseconds(1), get_current_frame()._swapchain_ready_semaphore, nullptr, &swapchain_image_index)) {
-        std::print(INIT_ERROR_STRING, "Could not acquire swapchain image");
-        return EngineRunError::Vk_ResetFenceFailed;
+    const VkResult acquire_err = vkAcquireNextImageKHR(_device, _swapchain, seconds_to_nanoseconds(1), get_current_frame()._swapchain_ready_semaphore, nullptr, &swapchain_image_index);
+	if (acquire_err == VK_ERROR_OUT_OF_DATE_KHR) {
+        _resize_requested = true;
     }
 
     // Reset and start command buffer
@@ -947,9 +960,9 @@ std::optional<EngineRunError> VkEngine::draw() {
 
 	present_info.pImageIndices = &swapchain_image_index;
 
-	if (vkQueuePresentKHR(_graphics_queue, &present_info)) {
-        std::print(INIT_ERROR_STRING, "Could not present queue");
-        return EngineRunError::Vk_QueuePresentFailed;
+    const VkResult present_err = vkQueuePresentKHR(_graphics_queue, &present_info);
+	if (present_err == VK_ERROR_OUT_OF_DATE_KHR) {
+        _resize_requested = true;
     }
 
 	_frame_number++;
