@@ -321,9 +321,18 @@ void VkEngine::init_descriptors() {
 
     // Create the descriptor layout for our compute shader
     // i.e. 1 descriptor of storage image at binding 0
-    DescriptorLayoutBuilder builder;
-    builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    _draw_image_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+    {
+        DescriptorLayoutBuilder builder;
+        builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        _draw_image_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+
+    // descriptor layout for per-frame descriptors
+    {
+        DescriptorLayoutBuilder builder;
+        builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        _gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
 
     // Allocate set for that layout
     _draw_image_descriptors = _global_descriptor_allocator.allocate(_device, _draw_image_descriptor_layout);	
@@ -332,7 +341,6 @@ void VkEngine::init_descriptors() {
     DescriptorWriter writer;
     writer.write_image(
         0, _draw_image.image_view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-
     writer.update_set(_device, _draw_image_descriptors);
 
     // Cleanup
@@ -340,7 +348,26 @@ void VkEngine::init_descriptors() {
 		_global_descriptor_allocator.destroy_pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
+        vkDestroyDescriptorSetLayout(_device, _gpu_scene_data_descriptor_layout, nullptr);
 	});
+
+    // Per-frame descriptors
+    for (int i = 0; i < FRAME_OVERLAP; i++) {
+		// create a descriptor pool
+		std::vector<DescriptorAllocator::PoolSizeRatio> frame_sizes = { 
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+		};
+
+		_frames[i]._frame_descriptors = DescriptorAllocator();
+		_frames[i]._frame_descriptors.init(_device, 1000, frame_sizes);
+	
+		_main_deletion_queue.push_function([&, i]() {
+			_frames[i]._frame_descriptors.destroy_pools(_device);
+		});
+	}
 }
 
 void VkEngine::init_background_pipelines() {
@@ -580,6 +607,8 @@ void VkEngine::cleanup() {
             vkDestroyFence(_device, _frames[i]._render_fence, nullptr);
 		    vkDestroySemaphore(_device, _frames[i]._render_finished_semaphore, nullptr);
 		    vkDestroySemaphore(_device ,_frames[i]._swapchain_ready_semaphore, nullptr);
+
+            _frames[i]._deletion_queue.flush();
 		}
 
         _main_deletion_queue.flush();
@@ -822,6 +851,28 @@ void VkEngine::draw_background(VkCommandBuffer cmd) {
 }
 
 void VkEngine::draw_geometry(VkCommandBuffer cmd) {
+    // TODO: Dynamic descriptor and buffer just to show how to do it.
+    // Would be better to cache it later
+    {
+	    AllocatedBuffer gpu_scene_data_buffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        // Write our scene data to newly allocated buffer
+        // NOTE: using CPU_TO_GPU buffer since the data is small
+        GPUSceneData* scene_uniform_data = (GPUSceneData*) gpu_scene_data_buffer.allocation->GetMappedData();
+        *scene_uniform_data = scene_data;
+
+        VkDescriptorSet global_descriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
+
+        DescriptorWriter writer;
+        writer.write_buffer(0, gpu_scene_data_buffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.update_set(_device, global_descriptor);
+
+        // Cleanup
+        get_current_frame()._deletion_queue.push_function([=, this]() {
+            destroy_buffer(gpu_scene_data_buffer);
+        });
+    }
+
 	VkRenderingAttachmentInfo color_attachment = vkinit::rendering_attachment_info(_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     VkRenderingAttachmentInfo depth_attachment = vkinit::depth_attachment_info(_depth_image.image_view);
 	VkRenderingInfo render_info = vkinit::rendering_info(_draw_extent, &color_attachment, &depth_attachment);
@@ -870,7 +921,10 @@ std::optional<EngineRunError> VkEngine::draw() {
         std::print(INIT_ERROR_STRING, "Could not wait on render fence");
         return EngineRunError::Vk_WaitOnFenceFailed;
     }
+
     get_current_frame()._deletion_queue.flush();
+    get_current_frame()._frame_descriptors.clear_pools(_device);
+
 	if (vkResetFences(_device, 1, &get_current_frame()._render_fence)) {
         std::print(INIT_ERROR_STRING, "Could not reset render fence");
         return EngineRunError::Vk_ResetFenceFailed;

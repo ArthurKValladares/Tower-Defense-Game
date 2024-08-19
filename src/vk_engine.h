@@ -52,6 +52,15 @@ struct ComputePushConstants {
 	glm::vec4 data4;
 };
 
+struct GPUSceneData {
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 view_proj;
+    glm::vec4 ambient_color;
+    glm::vec4 sunlight_direction;
+    glm::vec4 sunlight_color;
+};
+
 struct ComputeEffect {
     const char* name;
 
@@ -88,6 +97,8 @@ struct FrameData {
 	VkFence _render_fence;
 
     DeletionQueue _deletion_queue;
+
+    DescriptorAllocator _frame_descriptors;
 };
 
 struct VkEngine {
@@ -166,6 +177,9 @@ private:
 	VkDescriptorSet _draw_image_descriptors;
 	VkDescriptorSetLayout _draw_image_descriptor_layout;
 
+    GPUSceneData scene_data;
+    VkDescriptorSetLayout _gpu_scene_data_descriptor_layout;
+
     // Pipeline data
     std::vector<ComputeEffect> _compute_effects;
     int _current_compute_effect{0};
@@ -201,3 +215,5 @@ private:
 // TODO: Idead, VkCommandBuffer state-machine abstraction
 // TODO: 3 queue families, one for drawing the frame, one for async compute, the other for data transfer.
 // TODO: Multi-threaded CommandBuffer recording, submission in background thread
+
+// TODO: I don't quite like the per-frame descriptor stuff, remove soon `_gpu_scene_data_descriptor_layout`

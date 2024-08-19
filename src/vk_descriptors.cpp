@@ -128,16 +128,13 @@ VkDescriptorPool DescriptorAllocator::get_pool(VkDevice device)
 
 VkDescriptorPool DescriptorAllocator::create_pool(VkDevice device, uint32_t set_count, std::span<PoolSizeRatio> pool_ratios)
 {
-    float acc = 0.0;
 	std::vector<VkDescriptorPoolSize> pool_sizes;
 	for (PoolSizeRatio ratio : pool_ratios) {
 		pool_sizes.push_back(VkDescriptorPoolSize{
 			.type = ratio.type,
 			.descriptorCount = uint32_t(ratio.ratio * set_count)
 		});
-        acc += ratio.ratio;
 	}
-    assert(acc <= 1.0);
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
