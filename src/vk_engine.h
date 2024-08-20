@@ -12,6 +12,7 @@
 #include "vk_material.h"
 #include "vk_gltf_material.h"
 #include "vk_renderable.h"
+#include "camera.h"
 
 #include <glm/vec4.hpp>
 
@@ -162,7 +163,8 @@ private:
     void init_default_textures();
     void init_default_material();
     void init_default_nodes();
-    
+    void init_camera();
+
     void update_scene();
 
 private:
@@ -243,6 +245,8 @@ private:
     struct SDL_Window* _window = nullptr;
 
     DeletionQueue _main_deletion_queue;
+
+    Camera main_camera;
 
     friend class GLTFMetallic_Roughness;
 };

@@ -579,6 +579,14 @@ void VkEngine::init_imgui()
 	});
 }
 
+void VkEngine::init_camera() {
+	main_camera.velocity = glm::vec3(0.f);
+	main_camera.position = glm::vec3(0, 0, 5);
+
+	main_camera.pitch = 0;
+	main_camera.yaw = 0;
+}
+
 std::optional<EngineInitError> VkEngine::init() {
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -603,6 +611,7 @@ std::optional<EngineInitError> VkEngine::init() {
     init_pipelines();
     init_imgui();
     init_default_data();
+	init_camera();
 
     _is_initialized = true;
 
@@ -796,16 +805,19 @@ void VkEngine::init_default_data() {
 
 void VkEngine::update_scene()
 {
+	main_camera.update();
+
 	main_draw_context.OpaqueSurfaces.clear();
 
 	loaded_nodes["Suzanne"]->Draw(glm::mat4{1.f}, main_draw_context);	
 
-	scene_data.view = glm::translate(glm::vec3{ 0,0,-5 });
+	scene_data.view = main_camera.get_view_matrix();
+
 	scene_data.proj = glm::perspective(
         glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 0.1f, 10000.f);
-
 	// Invert y axis to match gltf
 	scene_data.proj[1][1] *= -1;
+
 	scene_data.view_proj = scene_data.proj * scene_data.view;
 
 	scene_data.ambient_color = glm::vec4(.1f);
@@ -989,6 +1001,7 @@ void VkEngine::run() {
                 }
             }
 
+			main_camera.process_sdl_event(sdl_event);
             ImGui_ImplSDL3_ProcessEvent(&sdl_event);
         }
 

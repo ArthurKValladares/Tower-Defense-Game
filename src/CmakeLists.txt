@@ -22,6 +22,7 @@ add_executable(src
     vk_loader.cpp
     vk_gltf_material.cpp
     vk_renderable.cpp
+    camera.cpp
     ${IMGUI_SRCS}
 )
 
