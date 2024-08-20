@@ -9,6 +9,9 @@
 #include "vk_types.h"
 #include "vk_descriptors.h"
 #include "vk_loader.h"
+#include "vk_material.h"
+#include "vk_gltf_material.h"
+#include "vk_renderable.h"
 
 #include <glm/vec4.hpp>
 
@@ -157,6 +160,10 @@ private:
     void init_default_data();
     void init_default_meshes();
     void init_default_textures();
+    void init_default_material();
+    void init_default_nodes();
+    
+    void update_scene();
 
 private:
     // Engine Data
@@ -206,8 +213,12 @@ private:
     VkPipelineLayout _mesh_pipeline_layout;
     VkPipeline _mesh_pipeline;
 
+    // Mesh data
     std::vector<std::shared_ptr<MeshAsset>> _test_meshes;
     int _current_mesh{ 0 };
+
+    DrawContext main_draw_context;
+    std::unordered_map<std::string, std::shared_ptr<Node>> loaded_nodes;
 
     // Immediate submit data
     VkFence _imm_fence;
@@ -216,6 +227,10 @@ private:
 
     // Images
     DefaultImages _default_images;
+
+    // Material data
+    MaterialInstance default_data;
+    GLTFMetallic_Roughness metal_rough_material;
 
     // Draw data
 	AllocatedImage _draw_image;
@@ -228,6 +243,8 @@ private:
     struct SDL_Window* _window = nullptr;
 
     DeletionQueue _main_deletion_queue;
+
+    friend class GLTFMetallic_Roughness;
 };
 
 // TODO: Instead of all the optional stuff that is vbloating the code, just print an error and abort,

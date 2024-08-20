@@ -514,6 +514,8 @@ void VkEngine::init_mesh_pipeline() {
 void VkEngine::init_pipelines() {
     init_background_pipelines();
     init_mesh_pipeline();
+
+    metal_rough_material.build_pipelines(this);
 }
 
 void VkEngine::init_imgui()
@@ -620,6 +622,8 @@ void VkEngine::cleanup() {
 
             _frames[i]._deletion_queue.flush();
 		}
+
+        metal_rough_material.clear_resources(_device);
 
         _main_deletion_queue.flush();
 
@@ -739,9 +743,74 @@ void VkEngine::init_default_textures() {
 	});
 }
 
+void VkEngine::init_default_material() {
+    GLTFMetallic_Roughness::MaterialResources material_resources;
+
+	material_resources.color_image = _default_images._white_image;
+	material_resources.color_sampler = _default_images._sampler_linear;
+	material_resources.metal_rough_image = _default_images._white_image;
+	material_resources.metal_rough_sampler = _default_images._sampler_linear;
+
+    // Create and write to material buffer
+	AllocatedBuffer material_constants =
+        create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	GLTFMetallic_Roughness::MaterialConstants* scene_uniform_data =
+        (GLTFMetallic_Roughness::MaterialConstants*) material_constants.allocation->GetMappedData();
+	scene_uniform_data->color_factors = glm::vec4{1,1,1,1};
+	scene_uniform_data->metal_rough_factors = glm::vec4{1,0.5,0,0};
+
+	_main_deletion_queue.push_function([=, this]() {
+		destroy_buffer(material_constants);
+	});
+
+	material_resources.data_buffer = material_constants.buffer;
+	material_resources.data_buffer_offset = 0;
+
+	default_data = metal_rough_material.write_material(
+        _device, MaterialPass::MainColor, material_resources, _global_descriptor_allocator);
+}
+
+void VkEngine::init_default_nodes() {
+    for (auto& m : _test_meshes) {
+		std::shared_ptr<MeshNode> new_node = std::make_shared<MeshNode>();
+		new_node->mesh = m;
+
+		new_node->local_transform = glm::mat4{ 1.f };
+		new_node->world_transform = glm::mat4{ 1.f };
+
+		for (auto& s : new_node->mesh->surfaces) {
+			s.material = std::make_shared<GLTFMaterial>(default_data);
+		}
+
+		loaded_nodes[m->name] = std::move(new_node);
+	}
+}
+
 void VkEngine::init_default_data() {
     init_default_meshes();
     init_default_textures();
+    init_default_material();
+    init_default_nodes();
+}
+
+void VkEngine::update_scene()
+{
+	main_draw_context.OpaqueSurfaces.clear();
+
+	loaded_nodes["Suzanne"]->Draw(glm::mat4{1.f}, main_draw_context);	
+
+	scene_data.view = glm::translate(glm::vec3{ 0,0,-5 });
+	scene_data.proj = glm::perspective(
+        glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 0.1f, 10000.f);
+
+	// Invert y axis to match gltf
+	scene_data.proj[1][1] *= -1;
+	scene_data.view_proj = scene_data.proj * scene_data.view;
+
+	scene_data.ambient_color = glm::vec4(.1f);
+	scene_data.sunlight_color = glm::vec4(1.f);
+	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
 }
 
 GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
@@ -989,6 +1058,7 @@ void VkEngine::draw_background(VkCommandBuffer cmd) {
 void VkEngine::draw_geometry(VkCommandBuffer cmd) {
     // TODO: Dynamic descriptor and buffer just to show how to do it.
     // Would be better to cache it later
+    VkDescriptorSet global_descriptor;
     {
 	    AllocatedBuffer gpu_scene_data_buffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -997,7 +1067,7 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
         GPUSceneData* scene_uniform_data = (GPUSceneData*) gpu_scene_data_buffer.allocation->GetMappedData();
         *scene_uniform_data = scene_data;
 
-        VkDescriptorSet global_descriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
+        global_descriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
 
         DescriptorWriter writer;
         writer.write_buffer(0, gpu_scene_data_buffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1032,37 +1102,30 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	scissor.extent.height = _draw_extent.height;
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    MeshAsset& mesh_asset = *_test_meshes[_current_mesh];
+    for (const RenderObject& draw : main_draw_context.OpaqueSurfaces) {
 
-    glm::mat4 view = glm::translate(glm::vec3{ 0, 0, -5 });
-    glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_draw_extent.width / (float)_draw_extent.height, 0.1f, 10000.f);
-	// Invert the Y axis so that we match opengl and gltf
-	projection[1][1] *= -1;
+		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+		vkCmdBindDescriptorSets(
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &global_descriptor, 0, nullptr );
+		vkCmdBindDescriptorSets(
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->material_set, 0, nullptr);
 
-	GPUDrawPushConstants push_constants;
-	push_constants.world_matrix = projection * view;
-	push_constants.vertex_buffer = mesh_asset.mesh_buffers.vertex_buffer_address;
-	vkCmdPushConstants(cmd, _mesh_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdBindIndexBuffer(cmd, draw.index_buffer,0,VK_INDEX_TYPE_UINT32);
 
-    // Bind texture descriptor set
-	VkDescriptorSet image_set = get_current_frame()._frame_descriptors.allocate(_device, _single_image_descriptor_layout);
-	{
-		DescriptorWriter writer;
-		writer.write_image(
-            0, _default_images._error_checkerboard_image.image_view, _default_images._sampler_nearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		GPUDrawPushConstants pushConstants;
+		pushConstants.vertex_buffer = draw.vertex_buffer_address;
+		pushConstants.world_matrix = draw.transform;
+		vkCmdPushConstants(cmd,draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-		writer.update_set(_device, image_set);
+		vkCmdDrawIndexed(cmd, draw.index_count, 1, draw.first_index, 0, 0);
 	}
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _mesh_pipeline_layout, 0, 1, &image_set, 0, nullptr);
-
-	vkCmdBindIndexBuffer(cmd, mesh_asset.mesh_buffers.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-	vkCmdDrawIndexed(cmd, mesh_asset.surfaces[0].count, 1, mesh_asset.surfaces[0].start_index, 0, 0);
 
 	vkCmdEndRendering(cmd);
 }
 
 std::optional<EngineRunError> VkEngine::draw() {
+    update_scene();
+
     // Wait until the gpu has finished rendering the last frame on the current index
 	if (vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, seconds_to_nanoseconds(1))) {
         std::print(INIT_ERROR_STRING, "Could not wait on render fence");
