@@ -811,6 +811,14 @@ void VkEngine::update_scene()
 	scene_data.ambient_color = glm::vec4(.1f);
 	scene_data.sunlight_color = glm::vec4(1.f);
 	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
+
+	for (int x = -4; x <= 4; x++) {
+
+		glm::mat4 scale = glm::scale(glm::vec3{0.2});
+		glm::mat4 translation =  glm::translate(glm::vec3{x, 1, 0});
+
+		loaded_nodes["Cube"]->Draw(translation * scale, main_draw_context);
+	}
 }
 
 GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
