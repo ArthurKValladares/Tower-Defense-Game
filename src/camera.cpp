@@ -22,7 +22,7 @@ void Camera::process_sdl_event(SDL_Event& e)
         if (e.key.key == SDLK_LSHIFT) { velocity.y = -1; }
     }
 
-    if (e.type == SDL_EVENT_KEY_DOWN) {
+    if (e.type == SDL_EVENT_KEY_UP) {
         if (e.key.key == SDLK_W) { velocity.z = 0; }
         if (e.key.key == SDLK_S) { velocity.z = 0; }
         if (e.key.key == SDLK_A) { velocity.x = 0; }
