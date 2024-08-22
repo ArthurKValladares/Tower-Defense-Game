@@ -8,7 +8,6 @@
 
 #include "vk_types.h"
 #include "vk_descriptors.h"
-#include "vk_loader.h"
 #include "vk_material.h"
 #include "vk_gltf_material.h"
 #include "vk_renderable.h"
@@ -162,7 +161,6 @@ private:
     void init_default_meshes();
     void init_default_textures();
     void init_default_material();
-    void init_default_nodes();
     void init_camera();
 
     void update_scene();
@@ -216,11 +214,9 @@ private:
     VkPipeline _mesh_pipeline;
 
     // Mesh data
-    std::vector<std::shared_ptr<MeshAsset>> _test_meshes;
-    int _current_mesh{ 0 };
+    std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loaded_scenes;
 
     DrawContext main_draw_context;
-    std::unordered_map<std::string, std::shared_ptr<Node>> loaded_nodes;
 
     // Immediate submit data
     VkFence _imm_fence;
@@ -249,6 +245,7 @@ private:
     Camera main_camera;
 
     friend class GLTFMetallic_Roughness;
+    friend class LoadedGLTF;
 };
 
 // TODO: Instead of all the optional stuff that is vbloating the code, just print an error and abort,

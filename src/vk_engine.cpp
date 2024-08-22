@@ -581,7 +581,7 @@ void VkEngine::init_imgui()
 
 void VkEngine::init_camera() {
 	main_camera.velocity = glm::vec3(0.f);
-	main_camera.position = glm::vec3(0, 0, 5);
+	main_camera.position = glm::vec3(30.f, -00.f, -085.f);
 
 	main_camera.pitch = 0;
 	main_camera.yaw = 0;
@@ -621,6 +621,8 @@ std::optional<EngineInitError> VkEngine::init() {
 void VkEngine::cleanup() {
     if (_is_initialized) {
         vkDeviceWaitIdle(_device);
+
+		loaded_scenes.clear();
 
         for (int i = 0; i < FRAME_OVERLAP; i++) {
 			vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
@@ -692,15 +694,12 @@ void VkEngine::destroy_buffer(const AllocatedBuffer& buffer)
 }
 
 void VkEngine::init_default_meshes() {
-    _test_meshes = load_gltf_meshes(this,"../assets/basicmesh.glb").value();
+    std::string structure_path = { "../assets/structure.glb" };
+    auto structure_file = LoadedGLTF::load_gltf(this,structure_path);
 
-	// Cleanup
-	_main_deletion_queue.push_function([&]() {
-        for (auto& mesh : _test_meshes) {
-	        destroy_buffer(mesh->mesh_buffers.index_buffer);
-	        destroy_buffer(mesh->mesh_buffers.vertex_buffer);
-        }
-	});
+    assert(structure_file.has_value());
+
+    loaded_scenes["structure"] = *structure_file;
 }
 
 void VkEngine::init_default_textures() {
@@ -780,27 +779,10 @@ void VkEngine::init_default_material() {
         _device, MaterialPass::MainColor, material_resources, _global_descriptor_allocator);
 }
 
-void VkEngine::init_default_nodes() {
-    for (auto& m : _test_meshes) {
-		std::shared_ptr<MeshNode> new_node = std::make_shared<MeshNode>();
-		new_node->mesh = m;
-
-		new_node->local_transform = glm::mat4{ 1.f };
-		new_node->world_transform = glm::mat4{ 1.f };
-
-		for (auto& s : new_node->mesh->surfaces) {
-			s.material = std::make_shared<GLTFMaterial>(default_data);
-		}
-
-		loaded_nodes[m->name] = std::move(new_node);
-	}
-}
-
 void VkEngine::init_default_data() {
-    init_default_meshes();
     init_default_textures();
     init_default_material();
-    init_default_nodes();
+	init_default_meshes();
 }
 
 void VkEngine::update_scene()
@@ -809,7 +791,7 @@ void VkEngine::update_scene()
 
 	main_draw_context.OpaqueSurfaces.clear();
 
-	loaded_nodes["Suzanne"]->Draw(glm::mat4{1.f}, main_draw_context);	
+	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
 
 	scene_data.view = main_camera.get_view_matrix();
 
@@ -823,14 +805,6 @@ void VkEngine::update_scene()
 	scene_data.ambient_color = glm::vec4(.1f);
 	scene_data.sunlight_color = glm::vec4(1.f);
 	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
-
-	for (int x = -4; x <= 4; x++) {
-
-		glm::mat4 scale = glm::scale(glm::vec3{0.2});
-		glm::mat4 translation =  glm::translate(glm::vec3{x, 1, 0});
-
-		loaded_nodes["Cube"]->Draw(translation * scale, main_draw_context);
-	}
 }
 
 GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
@@ -1033,12 +1007,6 @@ void VkEngine::run() {
                     ImGui::InputFloat4("data2", (float*)&selected.data.data2);
                     ImGui::InputFloat4("data3", (float*)&selected.data.data3);
                     ImGui::InputFloat4("data4", (float*)&selected.data.data4);
-
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::TreeNode("Current Mesh")) {
-                    ImGui::SliderInt("Mesh Index", &_current_mesh, 0, _test_meshes.size() - 1);
 
                     ImGui::TreePop();
                 }

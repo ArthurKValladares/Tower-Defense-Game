@@ -2,7 +2,10 @@
 
 #include "vk_types.h"
 #include "vk_material.h"
-#include "vk_loader.h"
+#include "vk_descriptors.h"
+
+#include <optional>
+#include <unordered_map>
 
 struct RenderObject {
     uint32_t index_count;
@@ -21,7 +24,7 @@ struct DrawContext {
 
 // TODO: Maybe make this some sort of enum-based approach intead of ingeritance-based later
 class IRenderable {
-    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
 };
 
 struct Node : public IRenderable {
@@ -40,17 +43,64 @@ struct Node : public IRenderable {
         }
     }
 
-    virtual void Draw(const glm::mat4& top_matrix, DrawContext& ctx)
+    virtual void draw(const glm::mat4& top_matrix, DrawContext& ctx)
     {
         for (auto& c : children) {
-            c->Draw(top_matrix, ctx);
+            c->draw(top_matrix, ctx);
         }
     }
+};
+
+struct GLTFMaterial {
+	MaterialInstance data;
+};
+
+struct GeoSurface {
+    uint32_t start_index;
+    uint32_t count;
+    std::shared_ptr<GLTFMaterial> material;
+};
+
+struct MeshAsset {
+    std::string name;
+
+    std::vector<GeoSurface> surfaces;
+    GPUMeshBuffers mesh_buffers;
 };
 
 struct MeshNode : public Node {
 
 	std::shared_ptr<MeshAsset> mesh;
 
-	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
+
+class VkEngine;
+struct LoadedGLTF : public IRenderable {
+
+    static std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VkEngine* engine, std::string_view file_path);
+
+    // GLTF data
+    std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
+    std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
+    std::unordered_map<std::string, AllocatedImage> images;
+    std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
+
+    std::vector<std::shared_ptr<Node>> roots;
+
+    std::vector<VkSampler> samplers;
+
+    DescriptorAllocator descriptor_pool;
+
+    AllocatedBuffer material_data_buffer;
+
+    VkEngine* creator;
+
+    ~LoadedGLTF() { clear_all(); };
+
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx);
+
+private:
+
+    void clear_all();
 };

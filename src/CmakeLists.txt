@@ -19,7 +19,6 @@ add_executable(src
     vk_descriptors.cpp
     vk_string.cpp
     vk_pipelines.cpp
-    vk_loader.cpp
     vk_gltf_material.cpp
     vk_renderable.cpp
     camera.cpp
