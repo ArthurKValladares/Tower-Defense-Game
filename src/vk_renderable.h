@@ -19,7 +19,8 @@ struct RenderObject {
 };
 
 struct DrawContext {
-	std::vector<RenderObject> OpaqueSurfaces;
+	std::vector<RenderObject> opaque_surfaces;
+    std::vector<RenderObject> transparent_surfaces;
 };
 
 // TODO: Maybe make this some sort of enum-based approach intead of ingeritance-based later

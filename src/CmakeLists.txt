@@ -11,6 +11,9 @@ set(IMGUI_SRCS
     ${IMGUI_DIR}/imgui_demo.cpp
 )
 
+set(STB_DIR ../vendor/stb)
+include_directories(${STB_DIR})
+
 add_executable(src 
     main.cpp
     vk_engine.cpp

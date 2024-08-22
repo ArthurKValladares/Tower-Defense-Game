@@ -789,8 +789,9 @@ void VkEngine::update_scene()
 {
 	main_camera.update();
 
-	main_draw_context.OpaqueSurfaces.clear();
-
+	main_draw_context.opaque_surfaces.clear();
+	main_draw_context.transparent_surfaces.clear();
+	
 	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
 
 	scene_data.view = main_camera.get_view_matrix();
@@ -1091,9 +1092,8 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	scissor.extent.height = _draw_extent.height;
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    for (const RenderObject& draw : main_draw_context.OpaqueSurfaces) {
-
-		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+	auto draw_fn = [&](const RenderObject& draw) {
+	vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
 		vkCmdBindDescriptorSets(
             cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &global_descriptor, 0, nullptr );
 		vkCmdBindDescriptorSets(
@@ -1107,6 +1107,14 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 		vkCmdPushConstants(cmd,draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
 		vkCmdDrawIndexed(cmd, draw.index_count, 1, draw.first_index, 0, 0);
+	};
+
+    for (const RenderObject& draw : main_draw_context.opaque_surfaces) {
+		draw_fn(draw);
+	}
+
+	for (const RenderObject& draw : main_draw_context.transparent_surfaces) {
+		draw_fn(draw);
 	}
 
 	vkCmdEndRendering(cmd);
