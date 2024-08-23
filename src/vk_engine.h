@@ -114,6 +114,14 @@ struct DefaultImages {
 	VkSampler _sampler_nearest;
 };
 
+struct EngineStats {
+    float frametime;
+    int triangle_count;
+    int drawcall_count;
+    float scene_update_time;
+    float mesh_draw_time;
+};
+
 struct VkEngine {
 
     std::optional<EngineInitError> init();
@@ -242,6 +250,7 @@ private:
 
     DeletionQueue _main_deletion_queue;
 
+    EngineStats stats;
     Camera main_camera;
 
     friend class GLTFMetallic_Roughness;

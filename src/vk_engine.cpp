@@ -945,6 +945,8 @@ void VkEngine::run() {
     bool should_quit = false;
 
     while (!should_quit) {
+		auto start = std::chrono::system_clock::now();
+
         while (SDL_PollEvent(&sdl_event) != 0) {
             switch (sdl_event.type) {
                 case SDL_EVENT_QUIT: {
@@ -1011,6 +1013,16 @@ void VkEngine::run() {
 
                     ImGui::TreePop();
                 }
+
+				if (ImGui::TreeNode("Stats")) {
+					ImGui::Text("frametime %f ms", stats.frametime);
+					ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+					ImGui::Text("update time %f ms", stats.scene_update_time);
+					ImGui::Text("triangles %i", stats.triangle_count);
+					ImGui::Text("draws %i", stats.drawcall_count);
+					
+					ImGui::TreePop();
+				}
 		    }
             ImGui::End();
 
@@ -1018,6 +1030,11 @@ void VkEngine::run() {
 
             // Main frame rendering
             draw();
+
+			//get clock again, compare with start clock
+			auto end = std::chrono::system_clock::now();
+			auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+			stats.frametime = elapsed.count() / 1000.f;
         }
     }
 }
@@ -1046,14 +1063,14 @@ void VkEngine::draw_background(VkCommandBuffer cmd) {
 }
 
 void VkEngine::draw_geometry(VkCommandBuffer cmd) {
-    // TODO: Dynamic descriptor and buffer just to show how to do it.
-    // Would be better to cache it later
+	stats.drawcall_count = 0;
+    stats.triangle_count = 0;
+	auto start = std::chrono::system_clock::now();
+
     VkDescriptorSet global_descriptor;
     {
 	    AllocatedBuffer gpu_scene_data_buffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        // Write our scene data to newly allocated buffer
-        // NOTE: using CPU_TO_GPU buffer since the data is small
         GPUSceneData* scene_uniform_data = (GPUSceneData*) gpu_scene_data_buffer.allocation->GetMappedData();
         *scene_uniform_data = scene_data;
 
@@ -1092,21 +1109,24 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	scissor.extent.height = _draw_extent.height;
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	auto draw_fn = [&](const RenderObject& draw) {
-	vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+	auto draw_fn = [&](const RenderObject& r) {
+	vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
 		vkCmdBindDescriptorSets(
-            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &global_descriptor, 0, nullptr );
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &global_descriptor, 0, nullptr );
 		vkCmdBindDescriptorSets(
-            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->material_set, 0, nullptr);
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->material_set, 0, nullptr);
 
-		vkCmdBindIndexBuffer(cmd, draw.index_buffer,0,VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(cmd, r.index_buffer,0,VK_INDEX_TYPE_UINT32);
 
 		GPUDrawPushConstants pushConstants;
-		pushConstants.vertex_buffer = draw.vertex_buffer_address;
-		pushConstants.world_matrix = draw.transform;
-		vkCmdPushConstants(cmd,draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+		pushConstants.vertex_buffer = r.vertex_buffer_address;
+		pushConstants.world_matrix = r.transform;
+		vkCmdPushConstants(cmd,r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-		vkCmdDrawIndexed(cmd, draw.index_count, 1, draw.first_index, 0, 0);
+		vkCmdDrawIndexed(cmd, r.index_count, 1, r.first_index, 0, 0);
+
+		stats.drawcall_count++;
+        stats.triangle_count += r.index_count / 3;
 	};
 
     for (const RenderObject& draw : main_draw_context.opaque_surfaces) {
@@ -1118,6 +1138,10 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	}
 
 	vkCmdEndRendering(cmd);
+
+	auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    stats.mesh_draw_time = elapsed.count() / 1000.f;
 }
 
 std::optional<EngineRunError> VkEngine::draw() {
