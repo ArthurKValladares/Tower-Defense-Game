@@ -148,7 +148,6 @@ private:
     void init_descriptors();
     void init_pipelines();
 	void init_background_pipelines();
-    void init_mesh_pipeline();
     void init_imgui();
 
     void draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view);
@@ -216,10 +215,6 @@ private:
     // Pipeline data
     std::vector<ComputeEffect> _compute_effects;
     int _current_compute_effect{0};
-
-    // Graphics pipeline data
-    VkPipelineLayout _mesh_pipeline_layout;
-    VkPipeline _mesh_pipeline;
 
     // Mesh data
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loaded_scenes;

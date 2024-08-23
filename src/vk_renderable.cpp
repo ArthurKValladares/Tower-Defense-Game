@@ -154,7 +154,11 @@ void MeshNode::draw(const glm::mat4& top_matrix, DrawContext& ctx)
 		def.transform = node_matrix;
 		def.vertex_buffer_address = mesh->mesh_buffers.vertex_buffer_address;
 		
-		ctx.opaque_surfaces.push_back(def);
+        if (s.material->data.pass_type == MaterialPass::Transparent) {
+            ctx.transparent_surfaces.push_back(def);
+        } else {
+		    ctx.opaque_surfaces.push_back(def);
+        }
 	}
 
 	Node::draw(top_matrix, ctx);

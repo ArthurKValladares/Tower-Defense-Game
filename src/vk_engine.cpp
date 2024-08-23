@@ -460,60 +460,8 @@ void VkEngine::init_background_pipelines() {
 	});
 }
 
-void VkEngine::init_mesh_pipeline() {
-    // Load shaders
-    VkShaderModule mesh_frag_shader;
-	if (!vkutil::load_shader_module("../shaders/mesh.frag.spv", _device, &mesh_frag_shader)) {
-		std::print("Error when building the triangle fragment shader module");
-	}
-
-	VkShaderModule mesh_vertex_shader;
-	if (!vkutil::load_shader_module("../shaders/mesh.vert.spv", _device, &mesh_vertex_shader)) {
-		std::print("Error when building the triangle vertex shader module");
-	}
-
-    // Create layout
-    VkPushConstantRange buffer_range{};
-	buffer_range.offset = 0;
-	buffer_range.size = sizeof(GPUDrawPushConstants);
-	buffer_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-    pipeline_layout_info.pPushConstantRanges = &buffer_range;
-	pipeline_layout_info.pushConstantRangeCount = 1;
-    pipeline_layout_info.pSetLayouts = &_single_image_descriptor_layout;
-	pipeline_layout_info.setLayoutCount = 1;
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_mesh_pipeline_layout));
-
-    // Create pipeline
-    PipelineBuilder pipeline_builder;
-
-	pipeline_builder._pipeline_layout = _mesh_pipeline_layout;
-	pipeline_builder.set_shaders(mesh_vertex_shader, mesh_frag_shader);
-	pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	pipeline_builder.set_multisampling_none();
-	pipeline_builder.disable_blending();
-	pipeline_builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-	pipeline_builder.set_color_attachment_format(_draw_image.image_format);
-	pipeline_builder.set_depth_format(_depth_image.image_format);
-
-	_mesh_pipeline = pipeline_builder.build_pipeline(_device);
-
-	// Cleanup
-	vkDestroyShaderModule(_device, mesh_frag_shader, nullptr);
-	vkDestroyShaderModule(_device, mesh_vertex_shader, nullptr);
-
-	_main_deletion_queue.push_function([&]() {
-		vkDestroyPipelineLayout(_device, _mesh_pipeline_layout, nullptr);
-		vkDestroyPipeline(_device, _mesh_pipeline, nullptr);
-	});
-}
-
 void VkEngine::init_pipelines() {
     init_background_pipelines();
-    init_mesh_pipeline();
 
     metal_rough_material.build_pipelines(this);
 }
@@ -792,8 +740,6 @@ void VkEngine::update_scene()
 	main_draw_context.opaque_surfaces.clear();
 	main_draw_context.transparent_surfaces.clear();
 	
-	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
-
 	scene_data.view = main_camera.get_view_matrix();
 
 	scene_data.proj = glm::perspective(
@@ -806,6 +752,8 @@ void VkEngine::update_scene()
 	scene_data.ambient_color = glm::vec4(.1f);
 	scene_data.sunlight_color = glm::vec4(1.f);
 	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
+
+	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
 }
 
 GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
@@ -1091,8 +1039,6 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	VkRenderingInfo render_info = vkinit::rendering_info(_draw_extent, &color_attachment, &depth_attachment);
 	vkCmdBeginRendering(cmd, &render_info);
 
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _mesh_pipeline);
-
 	MaterialPipeline* last_pipeline = nullptr;
 	MaterialInstance* last_material = nullptr;
 	VkBuffer last_index_buffer = VK_NULL_HANDLE;
@@ -1131,7 +1077,7 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 
 		if (r.index_buffer != last_index_buffer) {
 			last_index_buffer != r.index_buffer;
-			
+
 			vkCmdBindIndexBuffer(cmd, r.index_buffer, 0, VK_INDEX_TYPE_UINT32);
 		}
 

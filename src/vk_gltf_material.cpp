@@ -59,6 +59,7 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
 	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 	pipelineBuilder.set_color_attachment_format(engine->_draw_image.image_format);
 	pipelineBuilder.set_depth_format(engine->_depth_image.image_format);
+	
 	pipelineBuilder._pipeline_layout = new_layout;
 
     opaque_pipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
