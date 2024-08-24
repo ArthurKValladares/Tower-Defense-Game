@@ -1092,12 +1092,62 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
         stats.triangle_count += r.index_count / 3;
 	};
 
-    for (const RenderObject& draw : main_draw_context.opaque_surfaces) {
-		draw_fn(draw);
+
+	//
+	// Draw opaque objects
+	//
+
+	// Cull opaque draws outside bounds
+	std::vector<uint32_t> opaque_draws;
+	opaque_draws.reserve(main_draw_context.opaque_surfaces.size());
+	for (int i = 0; i < main_draw_context.opaque_surfaces.size(); i++) {
+		if (is_visible(main_draw_context.opaque_surfaces[i], scene_data.view_proj)) {
+			opaque_draws.push_back(i);
+		}
 	}
 
-	for (const RenderObject& draw : main_draw_context.transparent_surfaces) {
-		draw_fn(draw);
+	// Sort opaque draws by material
+	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = main_draw_context.opaque_surfaces[iA];
+		const RenderObject& B = main_draw_context.opaque_surfaces[iB];
+		if (A.material == B.material) {
+			return A.index_buffer < B.index_buffer;
+		}
+		else {
+			return A.material < B.material;
+		}
+	});
+
+	for (auto& r : opaque_draws) {
+		draw_fn(main_draw_context.opaque_surfaces[r]);
+	}
+
+	//
+	// Draw transparent objects
+	//
+
+    // Cull transparent draws outside bounds
+	std::vector<uint32_t> transparent_draws;
+	for (int i = 0; i < main_draw_context.transparent_surfaces.size(); i++) {
+		if (is_visible(main_draw_context.transparent_surfaces[i], scene_data.view_proj)) {
+			transparent_draws.push_back(i);
+		}
+	}
+
+	// Sort transparent draws by distance to camera
+	std::sort(transparent_draws.begin(), transparent_draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = main_draw_context.transparent_surfaces[iA];
+		const RenderObject& B = main_draw_context.transparent_surfaces[iB];
+		if (A.material == B.material) {
+			return A.index_buffer < B.index_buffer;
+		}
+		else {
+			return A.material < B.material;
+		}
+	});
+
+	for (auto& r : transparent_draws) {
+		draw_fn(main_draw_context.transparent_surfaces[r]);
 	}
 
 	vkCmdEndRendering(cmd);

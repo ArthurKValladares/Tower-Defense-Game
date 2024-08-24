@@ -7,16 +7,26 @@
 #include <optional>
 #include <unordered_map>
 
+struct Bounds {
+    glm::vec3 origin;
+    float sphere_radius;
+    glm::vec3 extents;
+};
+
 struct RenderObject {
     uint32_t index_count;
     uint32_t first_index;
     VkBuffer index_buffer;
     
+    Bounds bounds;
+
     MaterialInstance* material;
 
     glm::mat4 transform;
     VkDeviceAddress vertex_buffer_address;
 };
+
+bool is_visible(const RenderObject& obj, const glm::mat4& view_proj);
 
 struct DrawContext {
 	std::vector<RenderObject> opaque_surfaces;
@@ -59,6 +69,7 @@ struct GLTFMaterial {
 struct GeoSurface {
     uint32_t start_index;
     uint32_t count;
+    Bounds bounds;
     std::shared_ptr<GLTFMaterial> material;
 };
 

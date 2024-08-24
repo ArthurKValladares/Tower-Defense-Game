@@ -150,7 +150,7 @@ void MeshNode::draw(const glm::mat4& top_matrix, DrawContext& ctx)
 		def.first_index = s.start_index;
 		def.index_buffer = mesh->mesh_buffers.index_buffer.buffer;
 		def.material = &s.material->data;
-
+        def.bounds = s.bounds;
 		def.transform = node_matrix;
 		def.vertex_buffer_address = mesh->mesh_buffers.vertex_buffer_address;
 		
@@ -424,6 +424,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
                 new_surface.material = materials[0];
             }
 
+            // Calculate bounds
+            glm::vec3 min_pos = vertices[initial_vtx].position;
+            glm::vec3 max_pos = vertices[initial_vtx].position;
+            for (int i = initial_vtx; i < vertices.size(); i++) {
+                min_pos = glm::min(min_pos, vertices[i].position);
+                max_pos = glm::max(max_pos, vertices[i].position);
+            }
+            new_surface.bounds.origin = (max_pos + min_pos) / 2.f;
+            new_surface.bounds.extents = (max_pos - min_pos) / 2.f;
+            new_surface.bounds.sphere_radius = glm::length(new_surface.bounds.extents);
+
             new_mesh->surfaces.push_back(new_surface);
         }
 
@@ -529,5 +540,45 @@ void LoadedGLTF::clear_all() {
 
 	for (auto& sampler : samplers) {
 		vkDestroySampler(dv, sampler, nullptr);
+    }
+}
+
+bool is_visible(const RenderObject& obj, const glm::mat4& view_proj) {
+    // Create the 8 corners of the mesh-space bounding box, with the bounds x: [-1, 1], y: [-1, 1], z: [-1, 1]
+    std::array<glm::vec3, 8> corners {
+        glm::vec3 { 1, 1, 1 },
+        glm::vec3 { 1, 1, -1 },
+        glm::vec3 { 1, -1, 1 },
+        glm::vec3 { 1, -1, -1 },
+        glm::vec3 { -1, 1, 1 },
+        glm::vec3 { -1, 1, -1 },
+        glm::vec3 { -1, -1, 1 },
+        glm::vec3 { -1, -1, -1 },
+    };
+
+    glm::mat4 matrix = view_proj * obj.transform;
+
+    // Initial min/max bounds outside mesh bounding box
+    glm::vec3 min = { 1.5, 1.5, 1.5 };
+    glm::vec3 max = { -1.5, -1.5, -1.5 };
+
+    for (int c = 0; c < 8; c++) {
+        // Project each corner into clip space
+        glm::vec3 corner_extent = corners[c] * obj.bounds.extents;
+        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + corner_extent, 1.f);
+
+        // Perspective correction
+        v.x = v.x / v.w;
+        v.y = v.y / v.w;
+        v.z = v.z / v.w;
+
+        min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
+        max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
+    }
+
+    if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+        return false;
+    } else {
+        return true;
     }
 }
