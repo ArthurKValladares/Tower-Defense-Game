@@ -3,6 +3,7 @@
 #include "vk_types.h"
 #include "vk_material.h"
 #include "vk_descriptors.h"
+#include "camera.h"
 
 #include <optional>
 #include <unordered_map>
@@ -27,6 +28,7 @@ struct RenderObject {
 };
 
 bool is_visible(const RenderObject& obj, const glm::mat4& view_proj);
+float distance_to_camera(const RenderObject& obj, const Camera& camera);
 
 struct DrawContext {
 	std::vector<RenderObject> opaque_surfaces;

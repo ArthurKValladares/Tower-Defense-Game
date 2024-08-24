@@ -582,3 +582,7 @@ bool is_visible(const RenderObject& obj, const glm::mat4& view_proj) {
         return true;
     }
 }
+
+float distance_to_camera(const RenderObject& obj, const Camera& camera) {
+    return glm::length(obj.bounds.origin - camera.position);
+}

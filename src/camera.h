@@ -3,8 +3,7 @@
 #include "vk_types.h"
 #include <SDL3/SDL_events.h>
 
-class Camera {
-public:
+struct Camera {
     glm::vec3 velocity;
     glm::vec3 position;
 

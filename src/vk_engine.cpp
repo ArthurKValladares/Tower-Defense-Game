@@ -1143,12 +1143,7 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
 	std::sort(transparent_draws.begin(), transparent_draws.end(), [&](const auto& iA, const auto& iB) {
 		const RenderObject& A = main_draw_context.transparent_surfaces[iA];
 		const RenderObject& B = main_draw_context.transparent_surfaces[iB];
-		if (A.material == B.material) {
-			return A.index_buffer < B.index_buffer;
-		}
-		else {
-			return A.material < B.material;
-		}
+		return distance_to_camera(A, main_camera) < distance_to_camera(B, main_camera);
 	});
 
 	for (auto& r : transparent_draws) {
