@@ -116,9 +116,9 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
     }
 
     // Create Device
-	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
-	features.dynamicRendering = true;
-	features.synchronization2 = true;
+	VkPhysicalDeviceVulkan13Features features13{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+	features13.dynamicRendering = true;
+	features13.synchronization2 = true;
 
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
@@ -127,7 +127,7 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 	vkb::PhysicalDeviceSelector selector{ vkb_instance };
 	vkb::Result<vkb::PhysicalDevice> vkb_physical_device_result = selector
 		.set_minimum_version(1, 3)
-		.set_required_features_13(features)
+		.set_required_features_13(features13)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
 		.select();
@@ -312,66 +312,54 @@ std::optional<EngineInitError> VkEngine::init_sync_structures() {
 }
 
 void VkEngine::init_descriptors() {
-    // Create a descriptor pool that holds 10 storage image descriptors
-	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
-	{
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
-	};
-	_global_descriptor_allocator.init(_device, 10, sizes);
+    // create a descriptor pool
+    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
+    };
+    _global_descriptor_allocator.init(_device, 10, sizes);
 
-    // Create the descriptor layout for our compute shader
-    // i.e. 1 descriptor of storage image at binding 0
+	_main_deletion_queue.push_function( [&]() {
+		_global_descriptor_allocator.destroy_pools(_device);
+	});
+
     {
         DescriptorLayoutBuilder builder;
         builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         _draw_image_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
     }
 
-    // descriptor layout for per-frame descriptors
     {
         DescriptorLayoutBuilder builder;
         builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        _gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        _gpu_scene_data_descriptor_layout  = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     }
 
-    // Single image descriptor
-    {
-        DescriptorLayoutBuilder builder;
-        builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        _single_image_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
-    }
-
-    // Allocate set for that layout
-    _draw_image_descriptors = _global_descriptor_allocator.allocate(_device, _draw_image_descriptor_layout);	
-
-    // Write to the descriptor set we allocated (i.e. set our draw image as the required storage image)
-    DescriptorWriter writer;
-    writer.write_image(
-        0, _draw_image.image_view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    writer.update_set(_device, _draw_image_descriptors);
-
-    // Cleanup
-	_main_deletion_queue.push_function([=]() {
-		_global_descriptor_allocator.destroy_pools(_device);
-
-		vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
+    _main_deletion_queue.push_function([&]() {
+        vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor_layout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _gpu_scene_data_descriptor_layout, nullptr);
-        vkDestroyDescriptorSetLayout(_device, _single_image_descriptor_layout, nullptr);
-	});
+    });
 
-    // Per-frame descriptors
-    for (int i = 0; i < FRAME_OVERLAP; i++) {
+    _draw_image_descriptors = _global_descriptor_allocator.allocate(_device, _draw_image_descriptor_layout);
+    {
+        DescriptorWriter writer;	
+		writer.write_image(0, _draw_image.image_view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        writer.update_set(_device, _draw_image_descriptors);
+    }
+
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
 		// create a descriptor pool
-		std::vector<DescriptorAllocator::PoolSizeRatio> frame_sizes = { 
+		std::vector<DescriptorAllocator::PoolSizeRatio> frame_sizes = {
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
 		};
 
-		_frames[i]._frame_descriptors = DescriptorAllocator();
+		_frames[i]._frame_descriptors = DescriptorAllocator{};
 		_frames[i]._frame_descriptors.init(_device, 1000, frame_sizes);
-	
+
 		_main_deletion_queue.push_function([&, i]() {
 			_frames[i]._frame_descriptors.destroy_pools(_device);
 		});
@@ -939,61 +927,65 @@ void VkEngine::run() {
             // throttle the speed to avoid the endless spinning
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
-        } else {
-            if (_resize_requested) {
-            	resize_swapchain();
-            }
-
-            // Setup Imgui rendering
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplSDL3_NewFrame();
-            ImGui::NewFrame();
-
-            if (ImGui::Begin("Debug Data")) {
-                ImGui::SliderFloat("Render Scale", &_render_scale, 0.3f, 1.f);
-
-                if (ImGui::TreeNode("Compute Effect")) {
-                    ComputeEffect& selected = _compute_effects[_current_compute_effect];
-
-                    ImGui::Text("Selected effect: %s", selected.name);
-
-                    ImGui::SliderInt("Effect Index", &_current_compute_effect, 0, _compute_effects.size() - 1);
-
-                    ImGui::InputFloat4("data1", (float*)&selected.data.data1);
-                    ImGui::InputFloat4("data2", (float*)&selected.data.data2);
-                    ImGui::InputFloat4("data3", (float*)&selected.data.data3);
-                    ImGui::InputFloat4("data4", (float*)&selected.data.data4);
-
-                    ImGui::TreePop();
-                }
-
-				if (ImGui::TreeNode("Stats")) {
-					ImGui::Text("frametime %f ms", stats.frametime);
-					ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-					ImGui::Text("update time %f ms", stats.scene_update_time);
-					ImGui::Text("triangles %i", stats.triangle_count);
-					ImGui::Text("draws %i", stats.drawcall_count);
-					
-					ImGui::TreePop();
-				}
-		    }
-            ImGui::End();
-
-            ImGui::Render();
-
-            // Main frame rendering
-            draw();
-
-			//get clock again, compare with start clock
-			auto end = std::chrono::system_clock::now();
-			auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-			stats.frametime = elapsed.count() / 1000.f;
         }
+
+		if (_resize_requested) {
+			resize_swapchain();
+		}
+
+		//
+		// Setup Imgui rendering
+		//
+
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplSDL3_NewFrame();
+		ImGui::NewFrame();
+		ImGui::Begin("Debug Data");
+
+		ImGui::SliderFloat("Render Scale", &_render_scale, 0.3f, 1.f);
+
+		if (ImGui::TreeNode("Compute Effect")) {
+			ComputeEffect& selected = _compute_effects[_current_compute_effect];
+
+			ImGui::Text("Selected effect: %s", selected.name);
+
+			ImGui::SliderInt("Effect Index", &_current_compute_effect, 0, _compute_effects.size() - 1);
+
+			ImGui::InputFloat4("data1", (float*)&selected.data.data1);
+			ImGui::InputFloat4("data2", (float*)&selected.data.data2);
+			ImGui::InputFloat4("data3", (float*)&selected.data.data3);
+			ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNode("Stats")) {
+			ImGui::Text("frametime %f ms", stats.frametime);
+			ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+			ImGui::Text("update time %f ms", stats.scene_update_time);
+			ImGui::Text("triangles %i", stats.triangle_count);
+			ImGui::Text("draws %i", stats.drawcall_count);
+			
+			ImGui::TreePop();
+		}
+
+		ImGui::End();
+		ImGui::Render();
+
+		update_scene();
+
+		// Main frame rendering
+		draw();
+
+		//get clock again, compare with start clock
+		auto end = std::chrono::system_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		stats.frametime = elapsed.count() / 1000.f;
     }
 }
 
 void VkEngine::draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view) {
-    VkRenderingAttachmentInfo color_attachment = vkinit::rendering_attachment_info(target_image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo color_attachment = vkinit::attachment_info(target_image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo rendering_info = vkinit::rendering_info(_swapchain_extent, &color_attachment, nullptr);
 
 	vkCmdBeginRendering(cmd, &rendering_info);
@@ -1001,6 +993,114 @@ void VkEngine::draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view) {
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
 	vkCmdEndRendering(cmd);
+}
+
+void VkEngine::draw_geometry(VkCommandBuffer cmd) {
+    std::vector<uint32_t> opaque_draws;
+    opaque_draws.reserve(main_draw_context.opaque_surfaces.size());
+
+    for (int i = 0; i < main_draw_context.opaque_surfaces.size(); i++) {
+       if (is_visible(main_draw_context.opaque_surfaces[i], scene_data.view_proj)) {
+            opaque_draws.push_back(i);
+       }
+    }
+
+    // sort the opaque surfaces by material and mesh
+    std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = main_draw_context.opaque_surfaces[iA];
+		const RenderObject& B = main_draw_context.opaque_surfaces[iB];
+        if (A.material == B.material) {
+            return A.index_buffer < B.index_buffer;
+        } else {
+            return A.material < B.material;
+        }
+    });
+
+    //allocate a new uniform buffer for the scene data
+    AllocatedBuffer gpu_scene_data_buffer =  create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    //add it to the deletion queue of this frame so it gets deleted once its been used
+    get_current_frame()._deletion_queue.push_function([=,this](){
+        destroy_buffer(gpu_scene_data_buffer);
+    });
+
+    //write the buffer
+    GPUSceneData* sceneUniformData = (GPUSceneData*)gpu_scene_data_buffer.allocation->GetMappedData();
+    *sceneUniformData = scene_data;
+
+    //create a descriptor set that binds that buffer and update it
+    VkDescriptorSet globalDescriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpu_scene_data_buffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+
+    MaterialPipeline* lastPipeline = nullptr;
+    MaterialInstance* lastMaterial = nullptr;
+    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+    auto draw = [&](const RenderObject& r) {
+        if (r.material != lastMaterial) {
+            lastMaterial = r.material;
+            if (r.material->pipeline != lastPipeline) {
+
+                lastPipeline = r.material->pipeline;
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,r.material->pipeline->layout, 0, 1,
+                    &globalDescriptor, 0, nullptr);
+
+				VkViewport viewport = {};
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = (float)_window_extent.width;
+				viewport.height = (float)_window_extent.height;
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
+
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _window_extent.width;
+				scissor.extent.height = _window_extent.height;
+
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+            }
+
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
+                &r.material->material_set, 0, nullptr);
+        }
+        if (r.index_buffer != lastIndexBuffer) {
+            lastIndexBuffer = r.index_buffer;
+            vkCmdBindIndexBuffer(cmd, r.index_buffer, 0, VK_INDEX_TYPE_UINT32);
+        }
+        // calculate final mesh matrix
+        GPUDrawPushConstants push_constants;
+        push_constants.world_matrix = r.transform;
+        push_constants.vertex_buffer = r.vertex_buffer_address;
+
+        vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+        stats.drawcall_count++;
+        stats.triangle_count += r.index_count / 3;
+        vkCmdDrawIndexed(cmd, r.index_count, 1, r.first_index, 0, 0);
+    };
+
+    stats.drawcall_count = 0;
+    stats.triangle_count = 0;
+
+    for (auto& r : opaque_draws) {
+        draw(main_draw_context.opaque_surfaces[r]);
+    }
+
+    for (auto& r : main_draw_context.transparent_surfaces) {
+        draw(r);
+    }
+
+    // We delete the draw commands now that we processed them
+    main_draw_context.opaque_surfaces.clear();
+    main_draw_context.transparent_surfaces.clear();
 }
 
 void VkEngine::draw_background(VkCommandBuffer cmd) {
@@ -1015,255 +1115,122 @@ void VkEngine::draw_background(VkCommandBuffer cmd) {
     vkCmdDispatch(cmd, std::ceil(_draw_extent.width / 16.0), std::ceil(_draw_extent.height / 16.0), 1);
 }
 
-void VkEngine::draw_geometry(VkCommandBuffer cmd) {
-	stats.drawcall_count = 0;
-    stats.triangle_count = 0;
+void VkEngine::draw_main(VkCommandBuffer cmd) {
+	draw_background(cmd);
+
+    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	VkRenderingAttachmentInfo color_attachment = vkinit::attachment_info(
+		_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depth_attachment = vkinit::depth_attachment_info(
+		_depth_image.image_view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_window_extent, &color_attachment, &depth_attachment);
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
 	auto start = std::chrono::system_clock::now();
+	draw_geometry(cmd);
+	auto end = std::chrono::system_clock::now();
+	
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    VkDescriptorSet global_descriptor;
-    {
-	    AllocatedBuffer gpu_scene_data_buffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        GPUSceneData* scene_uniform_data = (GPUSceneData*) gpu_scene_data_buffer.allocation->GetMappedData();
-        *scene_uniform_data = scene_data;
-
-        global_descriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
-
-        DescriptorWriter writer;
-        writer.write_buffer(0, gpu_scene_data_buffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        writer.update_set(_device, global_descriptor);
-
-        // Cleanup
-        get_current_frame()._deletion_queue.push_function([=, this]() {
-            destroy_buffer(gpu_scene_data_buffer);
-        });
-    }
-
-	VkRenderingAttachmentInfo color_attachment = vkinit::rendering_attachment_info(_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    VkRenderingAttachmentInfo depth_attachment = vkinit::depth_attachment_info(_depth_image.image_view);
-	VkRenderingInfo render_info = vkinit::rendering_info(_draw_extent, &color_attachment, &depth_attachment);
-	vkCmdBeginRendering(cmd, &render_info);
-
-	MaterialPipeline* last_pipeline = nullptr;
-	MaterialInstance* last_material = nullptr;
-	VkBuffer last_index_buffer = VK_NULL_HANDLE;
-
-	auto draw_fn = [&](const RenderObject& r) {
-		if (r.material != last_material) {
-			last_material = r.material;
-
-			if (r.material->pipeline != last_pipeline) {
-				last_pipeline = r.material->pipeline;
-
-				vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(
-            		cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &global_descriptor, 0, nullptr);
-
-				VkViewport viewport = {};
-				viewport.x = 0;
-				viewport.y = 0;
-				viewport.width = _draw_extent.width;
-				viewport.height = _draw_extent.height;
-				viewport.minDepth = 0.f;
-				viewport.maxDepth = 1.f;
-				vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-				VkRect2D scissor = {};
-				scissor.offset.x = 0;
-				scissor.offset.y = 0;
-				scissor.extent.width = _draw_extent.width;
-				scissor.extent.height = _draw_extent.height;
-				vkCmdSetScissor(cmd, 0, 1, &scissor);
-			}
-
-			vkCmdBindDescriptorSets(
-            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->material_set, 0, nullptr);
-		}
-
-		if (r.index_buffer != last_index_buffer) {
-			last_index_buffer != r.index_buffer;
-
-			vkCmdBindIndexBuffer(cmd, r.index_buffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-
-		GPUDrawPushConstants pushConstants;
-		pushConstants.vertex_buffer = r.vertex_buffer_address;
-		pushConstants.world_matrix = r.transform;
-		vkCmdPushConstants(cmd,r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-		vkCmdDrawIndexed(cmd, r.index_count, 1, r.first_index, 0, 0);
-
-		stats.drawcall_count++;
-        stats.triangle_count += r.index_count / 3;
-	};
-
-
-	//
-	// Draw opaque objects
-	//
-
-	// Cull opaque draws outside bounds
-	std::vector<uint32_t> opaque_draws;
-	opaque_draws.reserve(main_draw_context.opaque_surfaces.size());
-	for (int i = 0; i < main_draw_context.opaque_surfaces.size(); i++) {
-		if (is_visible(main_draw_context.opaque_surfaces[i], scene_data.view_proj)) {
-			opaque_draws.push_back(i);
-		}
-	}
-
-	// Sort opaque draws by material
-	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = main_draw_context.opaque_surfaces[iA];
-		const RenderObject& B = main_draw_context.opaque_surfaces[iB];
-		if (A.material == B.material) {
-			return A.index_buffer < B.index_buffer;
-		}
-		else {
-			return A.material < B.material;
-		}
-	});
-
-	for (auto& r : opaque_draws) {
-		draw_fn(main_draw_context.opaque_surfaces[r]);
-	}
-
-	//
-	// Draw transparent objects
-	//
-
-    // Cull transparent draws outside bounds
-	std::vector<uint32_t> transparent_draws;
-	for (int i = 0; i < main_draw_context.transparent_surfaces.size(); i++) {
-		if (is_visible(main_draw_context.transparent_surfaces[i], scene_data.view_proj)) {
-			transparent_draws.push_back(i);
-		}
-	}
-
-	// Sort transparent draws by distance to camera
-	std::sort(transparent_draws.begin(), transparent_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = main_draw_context.transparent_surfaces[iA];
-		const RenderObject& B = main_draw_context.transparent_surfaces[iB];
-		return distance_to_camera(A, main_camera) < distance_to_camera(B, main_camera);
-	});
-
-	for (auto& r : transparent_draws) {
-		draw_fn(main_draw_context.transparent_surfaces[r]);
-	}
+	stats.mesh_draw_time = elapsed.count() / 1000.f;
 
 	vkCmdEndRendering(cmd);
-
-	auto end = std::chrono::system_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    stats.mesh_draw_time = elapsed.count() / 1000.f;
 }
 
-std::optional<EngineRunError> VkEngine::draw() {
-    update_scene();
-
+void VkEngine::draw() {
     // Wait until the gpu has finished rendering the last frame on the current index
-	if (vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, seconds_to_nanoseconds(1))) {
-        std::print(INIT_ERROR_STRING, "Could not wait on render fence");
-        return EngineRunError::Vk_WaitOnFenceFailed;
-    }
+	VK_CHECK(
+		vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, seconds_to_nanoseconds(1)));
 
     get_current_frame()._deletion_queue.flush();
     get_current_frame()._frame_descriptors.clear_pools(_device);
 
-	if (vkResetFences(_device, 1, &get_current_frame()._render_fence)) {
-        std::print(INIT_ERROR_STRING, "Could not reset render fence");
-        return EngineRunError::Vk_ResetFenceFailed;
+	uint32_t swapchain_image_index;
+    const VkResult e = vkAcquireNextImageKHR(_device, _swapchain, seconds_to_nanoseconds(1), get_current_frame()._swapchain_ready_semaphore, nullptr, &swapchain_image_index);
+	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
+        _resize_requested = true;
+		return;
     }
 
-    // TODO: Will need to be configurable in the future
+	// TODO: Will need to be configurable in the future
     _draw_extent.height =
         std::min(_swapchain_extent.height, _draw_image.image_extent.height) * _render_scale;
     _draw_extent.width =
         std::min(_swapchain_extent.width, _draw_image.image_extent.width) * _render_scale;
 
-    // Request image from the swapchain
-	uint32_t swapchain_image_index;
-    const VkResult acquire_err = vkAcquireNextImageKHR(_device, _swapchain, seconds_to_nanoseconds(1), get_current_frame()._swapchain_ready_semaphore, nullptr, &swapchain_image_index);
-	if (acquire_err == VK_ERROR_OUT_OF_DATE_KHR) {
-        _resize_requested = true;
-    }
+	VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._render_fence));
 
     // Reset and start command buffer
 	VkCommandBuffer cmd = get_current_frame()._main_command_buffer;
-	if (vkResetCommandBuffer(cmd, 0)) {
-        std::print(INIT_ERROR_STRING, "Could not reset CommandBuffer");
-        return EngineRunError::Vk_ResetCommandBufferFailed;
-    }
+	VK_CHECK(vkResetCommandBuffer(cmd, 0));
+
 	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-	if (vkBeginCommandBuffer(cmd, &cmdBeginInfo)) {
-        std::print(INIT_ERROR_STRING, "Could not begin CommandBuffer");
-        return EngineRunError::Vk_BeginCommandBufferFailed;
-    }
-
-    // Prepare draw image to be rendered to (compute not using depth atm)
-    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-    // To draw with compute, we must be in general format
-    draw_background(cmd);
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
     // Make draw and depth image ready to be used as attachments
-    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     vkutil::transition_image(cmd, _depth_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-    // To draw with graphics pipeline, we must be in color attachment format
-    draw_geometry(cmd);
+    draw_main(cmd);
 
-    // Prepare draw image to write into swapchain image, execute copy, prepare swapchain image to present
+	// Transtion the draw image and the swapchain image into their correct transfer layouts
 	vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    // Copy Draw image to swapchain
-    vkutil::copy_image_to_image(cmd, _draw_image.image, _swapchain_images[swapchain_image_index], _draw_extent, _swapchain_extent);
+	VkExtent2D extent;
+	extent.height = _window_extent.height;
+	extent.width = _window_extent.width;
 
-    // Transition swapchain image layout to Attachment Optimal so we can draw to it
-	vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	// Execute a copy from the draw image into the swapchain
+    vkutil::copy_image_to_image(
+		cmd, _draw_image.image, _swapchain_images[swapchain_image_index], _draw_extent, _swapchain_extent);
 
-	draw_imgui(cmd,  _swapchain_image_views[swapchain_image_index]);
+	// Set swapchain image layout to Attachment Optimal so we can draw it
+	vkutil::transition_image(
+		cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	// Transition swapchain image to presentable format
-    vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	// Draw imgui into the swapchain image
+	draw_imgui(cmd, _swapchain_image_views[swapchain_image_index]);
 
-    // End command buffer and submit queue
-	if (vkEndCommandBuffer(cmd)) {
-        std::print(INIT_ERROR_STRING, "Could not end CommandBuffer");
-        return EngineRunError::Vk_EndCommandBufferFailed;
-    }
+	// Set swapchain image layout to Present so we can draw it
+	vkutil::transition_image(
+		cmd, _swapchain_images[swapchain_image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-	VkCommandBufferSubmitInfo cmd_info = vkinit::command_buffer_submit_info(cmd);	
-	VkSemaphoreSubmitInfo wait_info = vkinit::semaphore_submit_info(
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, get_current_frame()._swapchain_ready_semaphore);
-	VkSemaphoreSubmitInfo signal_info = vkinit::semaphore_submit_info(
-        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame()._render_finished_semaphore);	
+	//finalize the command buffer (we can no longer add commands, but it can now be executed)
+	VK_CHECK(vkEndCommandBuffer(cmd));
 
-	VkSubmitInfo2 submit = vkinit::submit_info(&cmd_info, &signal_info, &wait_info);	
+	//prepare the submission to the queue. 
+	//we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
+	//we will signal the _renderSemaphore, to signal that rendering has finished
+	VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
+	VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, get_current_frame()._swapchain_ready_semaphore);
+	VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(
+		VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame()._render_finished_semaphore);
+	VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
-	if (vkQueueSubmit2(_graphics_queue, 1, &submit, get_current_frame()._render_fence)) {
-        std::print(INIT_ERROR_STRING, "Could not submit queue");
-        return EngineRunError::Vk_QueueSubmitFailed;
-    }
+	// Submit command buffer to the queue and execute it.
+	// _render_fence will now block until the graphic commands finish execution
+	VK_CHECK(vkQueueSubmit2(_graphics_queue, 1, &submit, get_current_frame()._render_fence));
 
-    // Present queue
-	VkPresentInfoKHR present_info = {};
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.pNext = nullptr;
-	present_info.pSwapchains = &_swapchain;
-	present_info.swapchainCount = 1;
+	// Prepare present
+	// this will put the image we just rendered to into the visible window.
+	// we want to wait on the _renderSemaphore for that, 
+	// as its necessary that drawing commands have finished before the image is displayed to the user
+	VkPresentInfoKHR presentInfo = vkinit::present_info();
+	presentInfo.pSwapchains = &_swapchain;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pWaitSemaphores = &get_current_frame()._render_finished_semaphore;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pImageIndices = &swapchain_image_index;
 
-	present_info.pWaitSemaphores = &get_current_frame()._render_finished_semaphore;
-	present_info.waitSemaphoreCount = 1;
-
-	present_info.pImageIndices = &swapchain_image_index;
-
-    const VkResult present_err = vkQueuePresentKHR(_graphics_queue, &present_info);
-	if (present_err == VK_ERROR_OUT_OF_DATE_KHR) {
+	VkResult presentResult = vkQueuePresentKHR(_graphics_queue, &presentInfo);
+	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
         _resize_requested = true;
-    }
+        return;
+	}
 
 	_frame_number++;
-
-    return std::nullopt;
 }

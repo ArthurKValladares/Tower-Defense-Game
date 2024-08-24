@@ -154,7 +154,8 @@ private:
     void draw_background(VkCommandBuffer cmd);
     void draw_geometry(VkCommandBuffer cmd);
 
-    std::optional<EngineRunError> draw();
+    void draw_main(VkCommandBuffer cmd);
+    void draw();
 
     FrameData& get_current_frame() {
         return _frames[_frame_number % FRAME_OVERLAP];
@@ -209,8 +210,6 @@ private:
 
     GPUSceneData scene_data;
     VkDescriptorSetLayout _gpu_scene_data_descriptor_layout;
-
-    VkDescriptorSetLayout _single_image_descriptor_layout;
 
     // Pipeline data
     std::vector<ComputeEffect> _compute_effects;

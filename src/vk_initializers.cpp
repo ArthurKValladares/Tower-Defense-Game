@@ -151,7 +151,7 @@ VkImageViewCreateInfo vkinit::image_view_create_info(VkFormat format, VkImage im
     return info;
 }
 
-VkRenderingAttachmentInfo vkinit::rendering_attachment_info(
+VkRenderingAttachmentInfo vkinit::attachment_info(
     VkImageView view, VkClearValue* clear ,VkImageLayout layout)
 {
     VkRenderingAttachmentInfo color_attachment {};
@@ -225,5 +225,20 @@ VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShad
     info.stage = stage;
     info.module = shader_module;
     info.pName = entry;
+    return info;
+}
+
+VkPresentInfoKHR vkinit::present_info()
+{
+    VkPresentInfoKHR info = {};
+    info.sType =  VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    info.pNext = 0;
+
+    info.swapchainCount = 0;
+    info.pSwapchains = nullptr;
+    info.pWaitSemaphores = nullptr;
+    info.waitSemaphoreCount = 0;
+    info.pImageIndices = nullptr;
+
     return info;
 }
