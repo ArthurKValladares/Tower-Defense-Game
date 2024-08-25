@@ -15,7 +15,6 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 
 #include <print>
@@ -734,7 +733,7 @@ void VkEngine::update_scene()
 	
 	const glm::mat4 view = main_camera.get_view_matrix();
 	glm::mat4 proj = glm::perspective(
-        glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 0.1f, 10000.f);
+        glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 10000.f, 0.1f);
 	// Invert y axis to match gltf
 	proj[1][1] *= -1;
 

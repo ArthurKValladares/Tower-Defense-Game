@@ -29,6 +29,7 @@ add_executable(src
 )
 
 target_compile_features(src PRIVATE cxx_std_23)
+target_compile_definitions(src PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 set_target_properties(src PROPERTIES CXX_EXTENSIONS off CXX_STANDARD_REQUIRED on)
 
 if (MSVC)
