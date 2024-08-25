@@ -33,7 +33,7 @@ set_target_properties(src PROPERTIES CXX_EXTENSIONS off CXX_STANDARD_REQUIRED on
 
 if (MSVC)
     # Maybe /W4 /Wall instead of /W3
-    target_compile_options(src PRIVATE /W3 /sdl /external:anglebrackets /external:W2 /fsanitize=address /wd4068)
+    target_compile_options(src PRIVATE)
     add_compile_definitions(_DISABLE_VECTOR_ANNOTATION _DISABLE_STRING_ANNOTATION)
 else ()
     target_compile_options(src PRIVATE -Wall -Wextra -Wpedantic -isystem)

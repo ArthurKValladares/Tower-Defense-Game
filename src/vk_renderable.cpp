@@ -177,8 +177,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
 
     fastgltf::Parser parser {};
 
-    constexpr auto gltf_options = 
-        fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
+    constexpr auto gltf_options = fastgltf::Options::AllowDouble
+            | fastgltf::Options::LoadGLBBuffers
+            | fastgltf::Options::LoadExternalBuffers
+            | fastgltf::Options::GenerateMeshIndices;
 
     fastgltf::Expected<fastgltf::GltfDataBuffer> expected_data = fastgltf::GltfDataBuffer::FromPath(file_path);
     if (expected_data.error() != fastgltf::Error::None) {
@@ -219,14 +221,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 }
     };
-
     file.descriptor_pool.init(engine->_device, gltf.materials.size(), sizes);
 
     //
     // Load samplers
     //
 
-    for (fastgltf::Sampler& sampler : gltf.samplers) {
+    for (const fastgltf::Sampler& sampler : gltf.samplers) {
 
         VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
         sampl.maxLod = VK_LOD_CLAMP_NONE;
@@ -342,7 +343,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
 
-    for (fastgltf::Mesh& mesh : gltf.meshes) {
+    for (const fastgltf::Mesh& mesh : gltf.meshes) {
         std::shared_ptr<MeshAsset> new_mesh = std::make_shared<MeshAsset>();
         meshes.push_back(new_mesh);
         file.meshes[mesh.name.c_str()] = new_mesh;
@@ -352,7 +353,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
         indices.clear();
         vertices.clear();
 
-        for (auto&& p : mesh.primitives) {
+        for (const fastgltf::Primitive& p : mesh.primitives) {
             GeoSurface new_surface;
             new_surface.start_index = (uint32_t)indices.size();
             new_surface.count = (uint32_t)gltf.accessors[p.indicesAccessor.value()].count;
@@ -490,11 +491,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
     // Setup transform hierarchy
     for (int i = 0; i < gltf.nodes.size(); i++) {
         fastgltf::Node& node = gltf.nodes[i];
-        std::shared_ptr<Node>& sceneNode = nodes[i];
+        std::shared_ptr<Node>& scene_node = nodes[i];
 
         for (auto& c : node.children) {
-            sceneNode->children.push_back(nodes[c]);
-            nodes[c]->parent = sceneNode;
+            scene_node->children.push_back(nodes[c]);
+            nodes[c]->parent = scene_node;
         }
     }
 

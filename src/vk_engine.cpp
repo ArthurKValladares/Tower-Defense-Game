@@ -552,6 +552,10 @@ std::optional<EngineInitError> VkEngine::init() {
     init_default_data();
 	init_camera();
 
+	scene_data.ambient_color = glm::vec4(.1f);
+	scene_data.sunlight_color = glm::vec4(1.f);
+	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
+
     _is_initialized = true;
 
     return std::nullopt;
@@ -727,22 +731,16 @@ void VkEngine::init_default_data() {
 void VkEngine::update_scene()
 {
 	main_camera.update();
-
-	main_draw_context.opaque_surfaces.clear();
-	main_draw_context.transparent_surfaces.clear();
 	
-	scene_data.view = main_camera.get_view_matrix();
-
-	scene_data.proj = glm::perspective(
+	const glm::mat4 view = main_camera.get_view_matrix();
+	glm::mat4 proj = glm::perspective(
         glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 0.1f, 10000.f);
 	// Invert y axis to match gltf
-	scene_data.proj[1][1] *= -1;
+	proj[1][1] *= -1;
 
-	scene_data.view_proj = scene_data.proj * scene_data.view;
-
-	scene_data.ambient_color = glm::vec4(.1f);
-	scene_data.sunlight_color = glm::vec4(1.f);
-	scene_data.sunlight_direction = glm::vec4(0,1,0.5,1.f);
+	scene_data.view = view;
+	scene_data.proj = proj;
+	scene_data.view_proj = proj * view;
 
 	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
 }
