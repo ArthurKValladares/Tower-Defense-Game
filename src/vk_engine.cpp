@@ -220,7 +220,10 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
         return EngineInitError::Vk_CreateDrawImageViewFailed;
     }
 
+	//
     // Create Depth Image
+	//
+	
     _depth_image.image_format = VK_FORMAT_D32_SFLOAT;
 	_depth_image.image_extent = draw_image_extent;
 
@@ -924,7 +927,6 @@ void VkEngine::run() {
         }
 
         if (_stop_rendering) {
-            // throttle the speed to avoid the endless spinning
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -974,7 +976,6 @@ void VkEngine::run() {
 
 		update_scene();
 
-		// Main frame rendering
 		draw();
 
 		//get clock again, compare with start clock
