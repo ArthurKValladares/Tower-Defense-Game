@@ -99,24 +99,24 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
     dynamic_info.dynamicStateCount = 2;
 
     // NOTE: Connect the RenderingInfo to the pnext chain
-    VkGraphicsPipelineCreateInfo pipelineInfo = {};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.pNext = &_rendering;
+    VkGraphicsPipelineCreateInfo pipeline_info = {};
+    pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipeline_info.pNext = &_rendering;
 
-    pipelineInfo.stageCount = (uint32_t) _shader_stages.size();
-    pipelineInfo.pStages = _shader_stages.data();
-    pipelineInfo.pVertexInputState = &vertex_input_info;
-    pipelineInfo.pInputAssemblyState = &_input_assembly;
-    pipelineInfo.pViewportState = &viewport_state;
-    pipelineInfo.pRasterizationState = &_rasterization;
-    pipelineInfo.pMultisampleState = &_multisample;
-    pipelineInfo.pColorBlendState = &color_blending;
-    pipelineInfo.pDepthStencilState = &_depth_stencil;
-    pipelineInfo.layout = _pipeline_layout;
-    pipelineInfo.pDynamicState = &dynamic_info;
+    pipeline_info.stageCount = (uint32_t) _shader_stages.size();
+    pipeline_info.pStages = _shader_stages.data();
+    pipeline_info.pVertexInputState = &vertex_input_info;
+    pipeline_info.pInputAssemblyState = &_input_assembly;
+    pipeline_info.pViewportState = &viewport_state;
+    pipeline_info.pRasterizationState = &_rasterization;
+    pipeline_info.pMultisampleState = &_multisample;
+    pipeline_info.pColorBlendState = &color_blending;
+    pipeline_info.pDepthStencilState = &_depth_stencil;
+    pipeline_info.layout = _pipeline_layout;
+    pipeline_info.pDynamicState = &dynamic_info;
 
     VkPipeline new_pipeline;
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info,
             nullptr, &new_pipeline) != VK_SUCCESS) {
         std::println("failed to create pipeline");
         return VK_NULL_HANDLE;

@@ -34,11 +34,11 @@ namespace {
 };
 
 std::optional<EngineInitError> VkEngine::create_swapchain(uint32_t width, uint32_t height) {
-    vkb::SwapchainBuilder swapchainBuilder{ _chosen_gpu, _device,_surface };
+    vkb::SwapchainBuilder swapchain_builder{ _chosen_gpu, _device,_surface };
 
 	_swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
-	vkb::Result<vkb::Swapchain> vkb_swapchain_result = swapchainBuilder
+	vkb::Result<vkb::Swapchain> vkb_swapchain_result = swapchain_builder
 		.set_desired_format(VkSurfaceFormatKHR{ .format = _swapchain_image_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
 		.set_desired_extent(width, height)
@@ -150,12 +150,12 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 	_chosen_gpu = vkb_physical_device.physical_device;
 
     // Create Allocator
-    VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = _chosen_gpu;
-    allocatorInfo.device = _device;
-    allocatorInfo.instance = _instance;
-    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocatorInfo, &_allocator);
+    VmaAllocatorCreateInfo allocator_info = {};
+    allocator_info.physicalDevice = _chosen_gpu;
+    allocator_info.device = _device;
+    allocator_info.instance = _instance;
+    allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocator_info, &_allocator);
 
     _main_deletion_queue.push_function([=]() {
         vmaDestroyAllocator(_allocator);
@@ -252,25 +252,25 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
 
 std::optional<EngineInitError> VkEngine::init_commands() {
     
-	VkCommandPoolCreateInfo commandPoolInfo =  vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	VkCommandPoolCreateInfo command_pool_info =  vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 	
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
 
-        if (vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i]._command_pool)) {
+        if (vkCreateCommandPool(_device, &command_pool_info, nullptr, &_frames[i]._command_pool)) {
             std::print(INIT_ERROR_STRING, "Could not create CommandPool");
             return EngineInitError::Vk_CreateCommandPoolFailed;
         }
 
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._command_pool);
+		VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(_frames[i]._command_pool);
 
-		if(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._main_command_buffer)) {
+		if(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_frames[i]._main_command_buffer)) {
             std::print(INIT_ERROR_STRING, "Could not create CommandBuffer");
             return EngineInitError::Vk_CreateCommandBufferFailed;
         }
 	}
 
     // Immediate structures
-    VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_imm_command_pool));
+    VK_CHECK(vkCreateCommandPool(_device, &command_pool_info, nullptr, &_imm_command_pool));
 
 	VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(_imm_command_pool, 1);
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_imm_command_buffer));
@@ -613,18 +613,18 @@ void VkEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& funct
 
 AllocatedBuffer VkEngine::create_buffer(size_t alloc_size, VkBufferUsageFlags usage, VmaMemoryUsage memory_usage)
 {
-	VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-	bufferInfo.pNext = nullptr;
-	bufferInfo.size = alloc_size;
+	VkBufferCreateInfo buffer_info = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+	buffer_info.pNext = nullptr;
+	buffer_info.size = alloc_size;
 
-	bufferInfo.usage = usage;
+	buffer_info.usage = usage;
 
-	VmaAllocationCreateInfo vmaallocInfo = {};
-	vmaallocInfo.usage = memory_usage;
-	vmaallocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+	VmaAllocationCreateInfo vma_alloc_info = {};
+	vma_alloc_info.usage = memory_usage;
+	vma_alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 	AllocatedBuffer newBuffer;
 
-	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation,
+	VK_CHECK(vmaCreateBuffer(_allocator, &buffer_info, &vma_alloc_info, &newBuffer.buffer, &newBuffer.allocation,
 		&newBuffer.info));
 
 	return newBuffer;
@@ -816,11 +816,11 @@ AllocatedImage VkEngine::create_image(VkExtent3D size, VkFormat format, VkImageU
 		img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
 	}
 
-	VmaAllocationCreateInfo allocinfo = {};
-	allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VmaAllocationCreateInfo alloc_info = {};
+	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	VK_CHECK(vmaCreateImage(_allocator, &img_info, &allocinfo, &new_image.image, &new_image.allocation, nullptr));
+	VK_CHECK(vmaCreateImage(_allocator, &img_info, &alloc_info, &new_image.image, &new_image.allocation, nullptr));
 
 	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
 	if (format == VK_FORMAT_D32_SFLOAT) {
@@ -1023,29 +1023,29 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
     });
 
     //write the buffer
-    GPUSceneData* sceneUniformData = (GPUSceneData*)gpu_scene_data_buffer.allocation->GetMappedData();
-    *sceneUniformData = scene_data;
+    GPUSceneData* scene_uniform_data = (GPUSceneData*)gpu_scene_data_buffer.allocation->GetMappedData();
+    *scene_uniform_data = scene_data;
 
     //create a descriptor set that binds that buffer and update it
-    VkDescriptorSet globalDescriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
+    VkDescriptorSet global_descriptor = get_current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpu_scene_data_buffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.update_set(_device, globalDescriptor);
+	writer.update_set(_device, global_descriptor);
 
-    MaterialPipeline* lastPipeline = nullptr;
-    MaterialInstance* lastMaterial = nullptr;
-    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+    MaterialPipeline* last_pipeline = nullptr;
+    MaterialInstance* last_material = nullptr;
+    VkBuffer last_index_buffer = VK_NULL_HANDLE;
 
     auto draw = [&](const RenderObject& r) {
-        if (r.material != lastMaterial) {
-            lastMaterial = r.material;
-            if (r.material->pipeline != lastPipeline) {
+        if (r.material != last_material) {
+            last_material = r.material;
+            if (r.material->pipeline != last_pipeline) {
 
-                lastPipeline = r.material->pipeline;
+                last_pipeline = r.material->pipeline;
                 vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
                 vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,r.material->pipeline->layout, 0, 1,
-                    &globalDescriptor, 0, nullptr);
+                    &global_descriptor, 0, nullptr);
 
 				VkViewport viewport = {};
 				viewport.x = 0;
@@ -1069,8 +1069,8 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
                 &r.material->material_set, 0, nullptr);
         }
-        if (r.index_buffer != lastIndexBuffer) {
-            lastIndexBuffer = r.index_buffer;
+        if (r.index_buffer != last_index_buffer) {
+            last_index_buffer = r.index_buffer;
             vkCmdBindIndexBuffer(cmd, r.index_buffer, 0, VK_INDEX_TYPE_UINT32);
         }
         // calculate final mesh matrix
@@ -1164,8 +1164,8 @@ void VkEngine::draw() {
 	VkCommandBuffer cmd = get_current_frame()._main_command_buffer;
 	VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	VkCommandBufferBeginInfo cmd_begin_info = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmd_begin_info));
 
     // Make draw and depth image ready to be used as attachments
     vkutil::transition_image(cmd, _draw_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -1202,12 +1202,12 @@ void VkEngine::draw() {
 	//prepare the submission to the queue. 
 	//we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	//we will signal the _renderSemaphore, to signal that rendering has finished
-	VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
-	VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(
+	VkCommandBufferSubmitInfo cmd_info = vkinit::command_buffer_submit_info(cmd);
+	VkSemaphoreSubmitInfo wait_info = vkinit::semaphore_submit_info(
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, get_current_frame()._swapchain_ready_semaphore);
-	VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(
+	VkSemaphoreSubmitInfo signal_info = vkinit::semaphore_submit_info(
 		VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame()._render_finished_semaphore);
-	VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
+	VkSubmitInfo2 submit = vkinit::submit_info(&cmd_info, &signal_info, &wait_info);
 
 	// Submit command buffer to the queue and execute it.
 	// _render_fence will now block until the graphic commands finish execution
@@ -1217,14 +1217,14 @@ void VkEngine::draw() {
 	// this will put the image we just rendered to into the visible window.
 	// we want to wait on the _renderSemaphore for that, 
 	// as its necessary that drawing commands have finished before the image is displayed to the user
-	VkPresentInfoKHR presentInfo = vkinit::present_info();
-	presentInfo.pSwapchains = &_swapchain;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pWaitSemaphores = &get_current_frame()._render_finished_semaphore;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pImageIndices = &swapchain_image_index;
+	VkPresentInfoKHR present_info = vkinit::present_info();
+	present_info.pSwapchains = &_swapchain;
+	present_info.swapchainCount = 1;
+	present_info.pWaitSemaphores = &get_current_frame()._render_finished_semaphore;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pImageIndices = &swapchain_image_index;
 
-	VkResult presentResult = vkQueuePresentKHR(_graphics_queue, &presentInfo);
+	VkResult present_result = vkQueuePresentKHR(_graphics_queue, &present_info);
 	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
         _resize_requested = true;
         return;

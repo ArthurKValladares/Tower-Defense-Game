@@ -16,10 +16,10 @@ void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout 
     image_barrier.oldLayout = current_layout;
     image_barrier.newLayout = new_layout;
 
-    VkImageAspectFlags aspectMask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
+    VkImageAspectFlags aspect_mask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
         ? VK_IMAGE_ASPECT_DEPTH_BIT
         : VK_IMAGE_ASPECT_COLOR_BIT;
-    image_barrier.subresourceRange = vkinit::image_subresource_range(aspectMask);
+    image_barrier.subresourceRange = vkinit::image_subresource_range(aspect_mask);
     image_barrier.image = image;
 
     VkDependencyInfo dep_info {};

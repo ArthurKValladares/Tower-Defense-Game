@@ -19,17 +19,17 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
 	}
 
     // Create descriptor set layout
-	VkPushConstantRange matrixRange{};
-	matrixRange.offset = 0;
-	matrixRange.size = sizeof(GPUDrawPushConstants);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	VkPushConstantRange matrix_range{};
+	matrix_range.offset = 0;
+	matrix_range.size = sizeof(GPUDrawPushConstants);
+	matrix_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    DescriptorLayoutBuilder layoutBuilder;
-    layoutBuilder.add_binding(0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    DescriptorLayoutBuilder layout_builder;
+    layout_builder.add_binding(0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    layout_builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layout_builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-    material_layout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    material_layout = layout_builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkDescriptorSetLayout layouts[] = { 
         engine->_gpu_scene_data_descriptor_layout,
@@ -40,7 +40,7 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 2;
 	mesh_layout_info.pSetLayouts = layouts;
-	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pPushConstantRanges = &matrix_range;
 	mesh_layout_info.pushConstantRangeCount = 1;
 
 	VkPipelineLayout new_layout;
@@ -49,26 +49,26 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
     opaque_pipeline.layout = new_layout;
     transparent_pipeline.layout = new_layout;
 
-	PipelineBuilder pipelineBuilder;
-	pipelineBuilder.set_shaders(mesh_vertex_shader, mesh_frag_shader);
-	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	pipelineBuilder.set_multisampling_none();
-	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-	pipelineBuilder.set_color_attachment_format(engine->_draw_image.image_format);
-	pipelineBuilder.set_depth_format(engine->_depth_image.image_format);
+	PipelineBuilder pipeline_builder;
+	pipeline_builder.set_shaders(mesh_vertex_shader, mesh_frag_shader);
+	pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipeline_builder.set_multisampling_none();
+	pipeline_builder.disable_blending();
+	pipeline_builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipeline_builder.set_color_attachment_format(engine->_draw_image.image_format);
+	pipeline_builder.set_depth_format(engine->_depth_image.image_format);
 	
-	pipelineBuilder._pipeline_layout = new_layout;
+	pipeline_builder._pipeline_layout = new_layout;
 
-    opaque_pipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+    opaque_pipeline.pipeline = pipeline_builder.build_pipeline(engine->_device);
 
 	// transparent pipeline variant
-	pipelineBuilder.enable_blending_additive();
-	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipeline_builder.enable_blending_additive();
+	pipeline_builder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
     
-	transparent_pipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+	transparent_pipeline.pipeline = pipeline_builder.build_pipeline(engine->_device);
 	
     // Cleanup
 	vkDestroyShaderModule(engine->_device, mesh_frag_shader, nullptr);
