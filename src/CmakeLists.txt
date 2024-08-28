@@ -16,15 +16,17 @@ include_directories(${STB_DIR})
 
 add_executable(src 
     main.cpp
-    vk_engine.cpp
-    vk_initializers.cpp
-    vk_image.cpp
-    vk_descriptors.cpp
-    vk_string.cpp
-    vk_pipelines.cpp
-    vk_gltf_material.cpp
-    vk_renderable.cpp
-    camera.cpp
+    # Renderer
+    renderer/vk_engine.cpp
+    renderer/vk_initializers.cpp
+    renderer/vk_image.cpp
+    renderer/vk_descriptors.cpp
+    renderer/vk_string.cpp
+    renderer/vk_pipelines.cpp
+    renderer/vk_gltf_material.cpp
+    renderer/vk_renderable.cpp
+    renderer/camera.cpp
+    # Imgui
     ${IMGUI_SRCS}
 )
 
