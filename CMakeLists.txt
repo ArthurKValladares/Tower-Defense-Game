@@ -30,4 +30,6 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
 endforeach(GLSL)
 message("------- Compiling Shaders Step End -------\n")
 
+# Copy necessary data to project source, better way to do this later?
 file(COPY ${PROJECT_SOURCE_DIR}/assets DESTINATION ${PROJECT_SOURCE_DIR}/build)
+file(COPY ${PROJECT_SOURCE_DIR}/maps DESTINATION ${PROJECT_SOURCE_DIR}/build)

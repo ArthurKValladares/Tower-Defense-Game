@@ -26,6 +26,8 @@ add_executable(src
     renderer/vk_gltf_material.cpp
     renderer/vk_renderable.cpp
     renderer/camera.cpp
+    # Editor
+    map_editor/map.cpp
     # Imgui
     ${IMGUI_SRCS}
 )
