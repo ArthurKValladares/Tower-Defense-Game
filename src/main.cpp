@@ -14,6 +14,7 @@ auto main(int argc, char** argv) -> int {
     }
 
     MapLayout map = MapLayout::from_path("../maps/test_map.tdm");
+    map.print();
 
     engine.run();
 

@@ -1,5 +1,4 @@
 #include "map.h"
-#include "../defs.h"
 
 #include <fstream>
 #include <print>
@@ -48,6 +47,15 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
     }
 
     return MapLayout{
-        tiles
+        std::move(tiles)
     };
+}
+
+void MapLayout::print() const {
+    for (const std::vector<TileType>& ts : tiles) {
+        for (const TileType& t : ts) {
+            std::print("{}", tile_type_to_char(t));
+        }
+        std::print("\n");
+    }
 }
