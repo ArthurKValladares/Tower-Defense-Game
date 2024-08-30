@@ -11,6 +11,7 @@ enum class TileType : unsigned char {
     Core,
 };
 
+// TODO: Auto-generate this function, and a reversed one later
 static char tile_type_to_char(TileType ty) {
     switch (ty) {
         case TileType::Path: {
