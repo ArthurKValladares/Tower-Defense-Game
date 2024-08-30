@@ -14,6 +14,8 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
     std::vector<std::vector<TileType>> tiles;
     std::string line;
 
+    bool found_core = false;
+
     int num_rows;
     int num_cols = -1;
     while (std::getline(map_file, line)) {
@@ -21,7 +23,7 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
         if (num_cols == -1) {
             num_cols = num_cols_line;
         }
-        M_Assert(num_cols == num_cols_line, "All lines in map must have the same number of tiles\n");
+        M_Assert(num_cols == num_cols_line, "All lines in map must have the same number of tiles.");
 
         std::vector<TileType> tiles_this_line;
         tiles_this_line.reserve(num_cols);
@@ -36,8 +38,14 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
                     tiles_this_line.emplace_back(TileType::Wall);
                     break;
                 }
+                case 'O': {
+                    tiles_this_line.emplace_back(TileType::Core);
+                    M_Assert(found_core == false, "Maps can only have one core.");
+                    found_core = true;
+                    break;
+                }
                 default: {
-                    M_Assert(false, "Unsupported tile type\n");
+                    M_Assert(false, "Unsupported tile type.");
                     break;
                 }
             }
@@ -45,6 +53,8 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
 
         tiles.emplace_back(std::move(tiles_this_line));
     }
+
+    M_Assert(found_core, "Map must have a core.");
 
     return MapLayout{
         std::move(tiles)

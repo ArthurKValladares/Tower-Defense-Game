@@ -8,6 +8,7 @@ enum class TileType : unsigned char {
     Invalid = 0,
     Path,
     Wall,
+    Core,
 };
 
 static char tile_type_to_char(TileType ty) {
@@ -17,6 +18,9 @@ static char tile_type_to_char(TileType ty) {
         }
         case TileType::Wall: {
             return '#';
+        }
+        case TileType::Core: {
+            return 'O';
         }
         case TileType::Invalid: {
             M_Assert(false, "Tile type not supported");
