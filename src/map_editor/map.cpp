@@ -163,6 +163,16 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
         }
     }
 
+    // Make sure that all valid paths are connected to the core
+    for (int r = 0; r < num_rows; ++r) {
+        for (int c = 0; c < num_cols; ++c) {
+            const TileType ty = tiles[r][c];
+            if (ty == TileType::Path && !visited.contains(RowColPair{r, c})) {
+                M_Assert(false, "All paths must be connected to the core.");
+            }
+        }
+    }
+
     return MapLayout{
         std::move(tiles)
     };
