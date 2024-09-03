@@ -994,6 +994,7 @@ void VkEngine::draw_imgui(VkCommandBuffer cmd, VkImageView target_image_view) {
 }
 
 void VkEngine::draw_geometry(VkCommandBuffer cmd) {
+	// sort the opaque surfaces by material and mesh
     std::vector<uint32_t> opaque_draws;
     opaque_draws.reserve(main_draw_context.opaque_surfaces.size());
 
@@ -1003,7 +1004,6 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
        }
     }
 
-    // sort the opaque surfaces by material and mesh
     std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
 		const RenderObject& A = main_draw_context.opaque_surfaces[iA];
 		const RenderObject& B = main_draw_context.opaque_surfaces[iB];
@@ -1012,6 +1012,22 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
         } else {
             return A.material < B.material;
         }
+    });
+
+	// sort the transparent surfaces by distance to camera
+    std::vector<uint32_t> transparent_draws;
+    transparent_draws.reserve(main_draw_context.transparent_surfaces.size());
+
+    for (int i = 0; i < main_draw_context.transparent_surfaces.size(); i++) {
+       if (is_visible(main_draw_context.transparent_surfaces[i], scene_data.view_proj)) {
+            transparent_draws.push_back(i);
+       }
+    }
+
+    std::sort(transparent_draws.begin(), transparent_draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = main_draw_context.transparent_surfaces[iA];
+		const RenderObject& B = main_draw_context.transparent_surfaces[iB];
+		return distance_to_camera(A, main_camera) < distance_to_camera(B, main_camera);
     });
 
     //allocate a new uniform buffer for the scene data
@@ -1092,8 +1108,8 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
         draw(main_draw_context.opaque_surfaces[r]);
     }
 
-    for (auto& r : main_draw_context.transparent_surfaces) {
-        draw(r);
+    for (auto& r : transparent_draws) {
+        draw(main_draw_context.transparent_surfaces[r]);
     }
 
     // We delete the draw commands now that we processed them
