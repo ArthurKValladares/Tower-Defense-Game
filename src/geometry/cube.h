@@ -2,10 +2,12 @@
 
 #include "../renderer/vk_renderable.h"
 
+#include <glm/gtx/quaternion.hpp>
+
 struct Cube {
-    Cube(glm::vec3 translate = glm::vec3(0.0), float scale = 1.0);
+    Cube(VkEngine* engine, std::string name,
+        glm::vec3 translate = glm::vec3(0.0), glm::quat rotation = glm::quat(), glm::vec3 scale = glm::vec3(1.0));
 
 private:
-    MeshAsset mesh;
-    Node node;
+    MeshNode mesh_node;
 };
