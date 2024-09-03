@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include <print>
-#include <unordered_set>
+#include <unordered_map>
 #include <utility>
 
 struct RowColPair {
@@ -92,50 +92,70 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
         return tiles[tile.r][tile.c];
     };
 
-    std::unordered_set<RowColPair> visited;
-    std::vector<RowColPair> to_visit;
-    to_visit.emplace_back(RowColPair{
+    RowColPair core_location = RowColPair{
         core_row,
         core_col
-    });
+    };
+
+    std::unordered_map<RowColPair, int> visited;
+    std::vector<std::pair<RowColPair, int>> to_visit;
+    to_visit.push_back({core_location, 0});
 
     while(!to_visit.empty()) {
-        const RowColPair current = to_visit.back();
+        const std::pair<RowColPair, int> current_p = to_visit.back();
+        const RowColPair current = current_p.first;
+        const int current_depth = current_p.second;
         to_visit.pop_back();
 
-        visited.insert(current);
+        visited.insert({current, current_depth});
 
         // Test 4 connected tiles
         const RowColPair above = RowColPair{
             current.r - 1,
             current.c
         };
+        if (visited.contains(above) &&
+            (visited.at(above) != current_depth + 1 && visited.at(above) != current_depth - 1)) {
+            M_Assert(false, "Graph cannot contain a cycle");
+        }
         if (is_in_bounds(above) && get_tile_type(above) == TileType::Path && !visited.contains(above)) {
-            to_visit.push_back(above);
+            to_visit.push_back({above, current_depth + 1});
         }
 
         const RowColPair below = RowColPair{
             current.r + 1,
             current.c
         };
+        if (visited.contains(below) &&
+            (visited.at(below) != current_depth + 1 && visited.at(below) != current_depth - 1)) {
+            M_Assert(false, "Graph cannot contain a cycle");
+        }
         if (is_in_bounds(below) && get_tile_type(below) == TileType::Path && !visited.contains(below)) {
-            to_visit.push_back(below);
+            to_visit.push_back({below, current_depth + 1});
         }
 
         const RowColPair right = RowColPair{
             current.r,
             current.c + 1
         };
+        if (visited.contains(right) &&
+            (visited.at(right) != current_depth + 1 && visited.at(right) != current_depth - 1)) {
+            M_Assert(false, "Graph cannot contain a cycle");
+        }
         if (is_in_bounds(right) && get_tile_type(right) == TileType::Path && !visited.contains(right)) {
-            to_visit.push_back(right);
+            to_visit.push_back({right, current_depth + 1});
         }
 
         const RowColPair left = RowColPair{
             current.r,
             current.c - 1
         };
+        if (visited.contains(left) &&
+            (visited.at(left) != current_depth + 1 && visited.at(left) != current_depth - 1)) {
+            M_Assert(false, "Graph cannot contain a cycle");
+        }
         if (is_in_bounds(left) && get_tile_type(left) == TileType::Path && !visited.contains(left)) {
-            to_visit.push_back(left);
+            to_visit.push_back({left, current_depth + 1});
         }
 
         const auto current_is_dead_end = [&]() {
