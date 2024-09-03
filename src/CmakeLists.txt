@@ -28,6 +28,8 @@ add_executable(src
     renderer/camera.cpp
     # Editor
     map_editor/map.cpp
+    # Geometry
+    geometry/cube.cpp
     # Imgui
     ${IMGUI_SRCS}
 )
