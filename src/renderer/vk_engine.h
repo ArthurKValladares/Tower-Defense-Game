@@ -13,6 +13,8 @@
 #include "vk_renderable.h"
 #include "camera.h"
 
+#include "../geometry/cube.h"
+
 #include <glm/vec4.hpp>
 
 #define FRAME_OVERLAP 2
@@ -125,16 +127,18 @@ struct EngineStats {
 struct VkEngine {
 
     std::optional<EngineInitError> init();
-    
     void run();
-
     void cleanup();
 
+    VkDevice vk_device() { return _device; }
+    
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mip_mapped = false);
     AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mip_mapped = false);
     void destroy_image(const AllocatedImage& img);
+
+    void destroy_buffer(const AllocatedBuffer& buffer);
 
 private:
     std::optional<EngineInitError> create_swapchain(uint32_t width, uint32_t height);
@@ -163,7 +167,6 @@ private:
 
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     AllocatedBuffer create_buffer(size_t alloc_size, VkBufferUsageFlags usage, VmaMemoryUsage memory_usage);
-    void destroy_buffer(const AllocatedBuffer& buffer);
 
     void init_default_data();
     void init_default_meshes();
@@ -217,6 +220,7 @@ private:
 
     // Mesh data
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loaded_scenes;
+    std::unique_ptr<Cube> cube_mesh;
 
     DrawContext main_draw_context;
 
