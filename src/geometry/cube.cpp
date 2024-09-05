@@ -9,6 +9,11 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
 {
     creator = engine;
 
+    material_data_buffer = engine->create_buffer(
+        sizeof(FlatColorMaterial::MaterialConstants),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU
+    );
+
     mesh_node.mesh = std::make_shared<MeshAsset>();
     mesh_node.mesh->name = std::move(name);
 
@@ -100,6 +105,18 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
     }
 
+    // Create surface
+    GeoSurface new_surface;
+    new_surface.start_index = 0;
+    new_surface.count = indices.size();
+    new_surface.material = std::make_shared<GLTFMaterial>();
+
+    FlatColorMaterial::MaterialResources material_resources;
+    material_resources.data_buffer = material_data_buffer.buffer;
+    material_resources.data_buffer_offset = 0;
+
+    new_surface.material->data = engine->flat_color_material.write_material(engine->vk_device(), material_resources, engine->_global_descriptor_allocator);
+
     MeshAsset& mesh_asset = *mesh_node.mesh;
     mesh_asset.mesh_buffers = engine->upload_mesh(indices, vertices);
 
@@ -120,6 +137,7 @@ Cube::~Cube() {
 
     creator->destroy_buffer(mesh_node.mesh->mesh_buffers.index_buffer);
     creator->destroy_buffer(mesh_node.mesh->mesh_buffers.vertex_buffer);
+    creator->destroy_buffer(material_data_buffer);
 }
 
 void Cube::draw(const glm::mat4& top_matrix, DrawContext& ctx) {

@@ -454,6 +454,7 @@ void VkEngine::init_pipelines() {
     init_background_pipelines();
 
     metal_rough_material.build_pipelines(this);
+	flat_color_material.build_pipelines(this);
 }
 
 void VkEngine::init_imgui()
@@ -578,6 +579,7 @@ void VkEngine::cleanup() {
 		}
 
         metal_rough_material.clear_resources(_device);
+		flat_color_material.clear_resources(_device);
 
         _main_deletion_queue.flush();
 

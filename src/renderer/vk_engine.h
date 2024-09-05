@@ -235,6 +235,7 @@ private:
     // Material data
     MaterialInstance default_data;
     GLTFMetallic_Roughness metal_rough_material;
+    FlatColorMaterial flat_color_material;
 
     // Draw data
 	AllocatedImage _draw_image;
@@ -251,8 +252,11 @@ private:
     EngineStats stats;
     Camera main_camera;
 
+    // TODO: Too many friend classes
     friend class GLTFMetallic_Roughness;
+    friend class FlatColorMaterial;
     friend class LoadedGLTF;
+    friend class Cube;
 };
 
 // TODO: Instead of all the optional stuff that is vbloating the code, just print an error and abort,

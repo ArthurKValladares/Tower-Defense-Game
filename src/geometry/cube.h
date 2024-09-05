@@ -11,7 +11,9 @@ struct Cube {
     ~Cube();
 
     void draw(const glm::mat4& top_matrix, DrawContext& ctx);
+
 private:
     VkEngine* creator;
     MeshNode mesh_node;
+    AllocatedBuffer material_data_buffer;
 };

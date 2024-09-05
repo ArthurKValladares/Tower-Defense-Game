@@ -35,3 +35,28 @@ struct GLTFMetallic_Roughness {
 
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocator& descriptor_allocator);
 };
+
+// TODO: This needs to be better later
+struct FlatColorMaterial {
+	MaterialPipeline pipeline;
+	VkDescriptorSetLayout material_layout;
+
+	struct MaterialConstants {
+		glm::vec4 color_factors;
+		glm::vec4 metal_rough_factors;
+		// Pad to 256 bytes
+		glm::vec4 padding[14];
+	};
+
+	struct MaterialResources {
+		VkBuffer data_buffer;
+		uint32_t data_buffer_offset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipelines(VkEngine* engine);
+	void clear_resources(VkDevice device);
+
+	MaterialInstance write_material(VkDevice device, const MaterialResources& resources, DescriptorAllocator& descriptor_allocator);
+};
