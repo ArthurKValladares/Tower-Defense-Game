@@ -566,7 +566,7 @@ void VkEngine::cleanup() {
         vkDeviceWaitIdle(_device);
 
 		loaded_scenes.clear();
-		cube_mesh.release();
+		cube_mesh.reset();
 
         for (int i = 0; i < FRAME_OVERLAP; i++) {
 			vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
@@ -639,12 +639,14 @@ void VkEngine::destroy_buffer(const AllocatedBuffer& buffer)
 }
 
 void VkEngine::init_default_meshes() {
+	/*
     std::string structure_path = { "../assets/structure.glb" };
     auto structure_file = LoadedGLTF::load_gltf(this,structure_path);
     assert(structure_file.has_value());
     loaded_scenes["structure"] = *structure_file;
+	*/
 
-	cube_mesh = std::make_unique<Cube>(Cube(this, "Test cube"));
+	cube_mesh = std::make_unique<Cube>(this, "Test cube", glm::vec3(0.0), glm::quat(), glm::vec3(10.0));
 }
 
 void VkEngine::init_default_textures() {
@@ -744,7 +746,7 @@ void VkEngine::update_scene()
 	scene_data.proj = proj;
 	scene_data.view_proj = proj * view;
 
-	loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
+	//loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
 	cube_mesh->draw(glm::mat4{ 1.f }, main_draw_context);
 }
 
@@ -1090,8 +1092,8 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
                 &r.material->material_set, 0, nullptr);
         }
         if (r.index_buffer != last_index_buffer) {
-            last_index_buffer = r.index_buffer;
             vkCmdBindIndexBuffer(cmd, r.index_buffer, 0, VK_INDEX_TYPE_UINT32);
+			last_index_buffer = r.index_buffer;
         }
         // calculate final mesh matrix
         GPUDrawPushConstants push_constants;

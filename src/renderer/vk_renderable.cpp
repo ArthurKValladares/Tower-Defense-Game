@@ -426,6 +426,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
             }
 
             // Calculate bounds
+            // TODO: Duplicated code in Cube
             glm::vec3 min_pos = vertices[initial_vtx].position;
             glm::vec3 max_pos = vertices[initial_vtx].position;
             for (int i = initial_vtx; i < vertices.size(); i++) {

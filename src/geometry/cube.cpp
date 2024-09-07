@@ -118,6 +118,21 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
     new_surface.material->data = engine->flat_color_material.write_material(engine->vk_device(), material_resources, engine->_global_descriptor_allocator);
 
     MeshAsset& mesh_asset = *mesh_node.mesh;
+
+    // Calculate bounds
+    // TODO: Duplicated code
+    glm::vec3 min_pos = vertices[0].position;
+    glm::vec3 max_pos = vertices[0].position;
+    for (int i = 0; i < vertices.size(); i++) {
+        min_pos = glm::min(min_pos, vertices[i].position);
+        max_pos = glm::max(max_pos, vertices[i].position);
+    }
+    new_surface.bounds.origin = (max_pos + min_pos) / 2.f;
+    new_surface.bounds.extents = (max_pos - min_pos) / 2.f;
+    new_surface.bounds.sphere_radius = glm::length(new_surface.bounds.extents);
+
+    mesh_asset.surfaces.push_back(new_surface);
+
     mesh_asset.mesh_buffers = engine->upload_mesh(indices, vertices);
 
     //
