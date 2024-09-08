@@ -75,7 +75,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         bottom_left.color = glm::vec4 { 1.f };
         bottom_left.uv_x = 0;
         bottom_left.uv_y = 0;
-        vertices[0] = bottom_left;
+        vertices[4] = bottom_left;
 
         Vertex bottom_right;
         bottom_right.position = glm::vec3(0.5, y_pos, -0.5);
@@ -83,7 +83,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         bottom_right.color = glm::vec4 { 1.f };
         bottom_right.uv_x = 0;
         bottom_right.uv_y = 0;
-        vertices[1] = bottom_right;
+        vertices[5] = bottom_right;
 
         Vertex top_left;
         top_left.position = glm::vec3(-0.5, y_pos, 0.5);
@@ -91,7 +91,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         top_left.color = glm::vec4 { 1.f };
         top_left.uv_x = 0;
         top_left.uv_y = 0;
-        vertices[2] = top_left;
+        vertices[6] = top_left;
 
         Vertex top_right;
         top_right.position = glm::vec3(0.5, y_pos, 0.5);
@@ -99,7 +99,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         top_right.color = glm::vec4 { 1.f };
         top_right.uv_x = 0;
         top_right.uv_y = 0;
-        vertices[3] = top_right;
+        vertices[7] = top_right;
 
         std::vector plane_indices = {4, 6, 5, 5, 6, 7};
         indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
