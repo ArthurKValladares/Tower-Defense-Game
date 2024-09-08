@@ -25,6 +25,14 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
     // Load/Create Mesh
     //
     
+    // 0   1
+    // 
+    // 2   3
+
+    // 4   5
+    //
+    // 6   7
+
     // Create top plane vertices
     {
         const float y_pos = 0.5;
@@ -61,6 +69,9 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         top_right.uv_y = 0;
         vertices[3] = top_right;
 
+        // 0   1
+        // 
+        // 2   3
         std::vector plane_indices = {0, 2, 1, 1, 2, 3};
         indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
     }
@@ -101,7 +112,42 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         top_right.uv_y = 0;
         vertices[7] = top_right;
 
+        // 4   5
+        //
+        // 6   7
         std::vector plane_indices = {4, 6, 5, 5, 6, 7};
+        indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
+    }
+
+    // 0   1
+    //
+    // 4   5
+    {
+        std::vector plane_indices = {0, 4, 1, 1, 4, 5};
+        indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
+    }
+
+    // 2   3
+    //
+    // 6   7
+    {
+        std::vector plane_indices = {2, 6, 3, 3, 6, 7};
+        indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
+    }
+
+    // 0   2
+    //
+    // 4   6
+    {
+        std::vector plane_indices = {0, 4, 2, 2, 4, 6};
+        indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
+    }
+
+    // 3   1
+    //
+    // 7   5
+    {
+        std::vector plane_indices = {3, 7, 1, 1, 7, 5};
         indices.insert(indices.end(), plane_indices.begin(), plane_indices.end());
     }
 
