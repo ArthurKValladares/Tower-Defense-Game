@@ -5,7 +5,9 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 
-Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat rotation, glm::vec3 scale) 
+Cube::Cube(VkEngine* engine, std::string name, 
+    glm::vec3 translate, glm::quat rotation, glm::vec3 scale,
+    glm::vec4 color) 
 {
     creator = engine;
 
@@ -40,7 +42,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex bottom_left;
         bottom_left.position = glm::vec3(-0.5, y_pos, -0.5);
         bottom_left.normal = { 1, 0, 0 };
-        bottom_left.color = glm::vec4 { 1.f };
+        bottom_left.color = color;
         bottom_left.uv_x = 0;
         bottom_left.uv_y = 0;
         vertices[0] = bottom_left;
@@ -48,7 +50,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex bottom_right;
         bottom_right.position = glm::vec3(0.5, y_pos, -0.5);
         bottom_right.normal = { 1, 0, 0 };
-        bottom_right.color = glm::vec4 { 1.f };
+        bottom_right.color = color;
         bottom_right.uv_x = 0;
         bottom_right.uv_y = 0;
         vertices[1] = bottom_right;
@@ -56,7 +58,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex top_left;
         top_left.position = glm::vec3(-0.5, y_pos, 0.5);
         top_left.normal = { 1, 0, 0 };
-        top_left.color = glm::vec4 { 1.f };
+        top_left.color = color;
         top_left.uv_x = 0;
         top_left.uv_y = 0;
         vertices[2] = top_left;
@@ -64,7 +66,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex top_right;
         top_right.position = glm::vec3(0.5, y_pos, 0.5);
         top_right.normal = { 1, 0, 0 };
-        top_right.color = glm::vec4 { 1.f };
+        top_right.color = color;
         top_right.uv_x = 0;
         top_right.uv_y = 0;
         vertices[3] = top_right;
@@ -83,7 +85,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex bottom_left;
         bottom_left.position = glm::vec3(-0.5, y_pos, -0.5);
         bottom_left.normal = { 1, 0, 0 };
-        bottom_left.color = glm::vec4 { 1.f };
+        bottom_left.color = color;
         bottom_left.uv_x = 0;
         bottom_left.uv_y = 0;
         vertices[4] = bottom_left;
@@ -91,7 +93,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex bottom_right;
         bottom_right.position = glm::vec3(0.5, y_pos, -0.5);
         bottom_right.normal = { 1, 0, 0 };
-        bottom_right.color = glm::vec4 { 1.f };
+        bottom_right.color = color;
         bottom_right.uv_x = 0;
         bottom_right.uv_y = 0;
         vertices[5] = bottom_right;
@@ -99,7 +101,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex top_left;
         top_left.position = glm::vec3(-0.5, y_pos, 0.5);
         top_left.normal = { 1, 0, 0 };
-        top_left.color = glm::vec4 { 1.f };
+        top_left.color = color;
         top_left.uv_x = 0;
         top_left.uv_y = 0;
         vertices[6] = top_left;
@@ -107,7 +109,7 @@ Cube::Cube(VkEngine* engine, std::string name, glm::vec3 translate, glm::quat ro
         Vertex top_right;
         top_right.position = glm::vec3(0.5, y_pos, 0.5);
         top_right.normal = { 1, 0, 0 };
-        top_right.color = glm::vec4 { 1.f };
+        top_right.color = color;
         top_right.uv_x = 0;
         top_right.uv_y = 0;
         vertices[7] = top_right;

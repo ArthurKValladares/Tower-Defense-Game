@@ -520,9 +520,9 @@ void VkEngine::init_imgui()
 
 void VkEngine::init_camera() {
 	main_camera.velocity = glm::vec3(0.f);
-	main_camera.position = glm::vec3(30.f, -00.f, -085.f);
+	main_camera.position = glm::vec3(0.f, 15.f, 30.f);
 
-	main_camera.pitch = 0;
+	main_camera.pitch = -0.5;
 	main_camera.yaw = 0;
 }
 
@@ -646,7 +646,9 @@ void VkEngine::init_default_meshes() {
     loaded_scenes["structure"] = *structure_file;
 	*/
 
-	cube_mesh = std::make_unique<Cube>(this, "Test cube", glm::vec3(0.0), glm::quat(), glm::vec3(10.0));
+	cube_mesh = std::make_unique<Cube>(this, "Test cube", 
+		glm::vec3(0.0), glm::quat(), glm::vec3(10.0),
+		glm::vec4(1.0, 0.0, 0.0, 1.0));
 }
 
 void VkEngine::init_default_textures() {
