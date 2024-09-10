@@ -220,7 +220,7 @@ private:
 
     // Mesh data
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loaded_scenes;
-    std::unique_ptr<Cube> cube_mesh;
+    std::vector<std::unique_ptr<Cube>> cube_meshes;
 
     DrawContext main_draw_context;
 

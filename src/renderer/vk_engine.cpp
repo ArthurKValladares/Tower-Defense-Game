@@ -566,7 +566,7 @@ void VkEngine::cleanup() {
         vkDeviceWaitIdle(_device);
 
 		loaded_scenes.clear();
-		cube_mesh.reset();
+		cube_meshes.clear();
 
         for (int i = 0; i < FRAME_OVERLAP; i++) {
 			vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
@@ -646,9 +646,15 @@ void VkEngine::init_default_meshes() {
     loaded_scenes["structure"] = *structure_file;
 	*/
 
-	cube_mesh = std::make_unique<Cube>(this, "Test cube", 
+	cube_meshes.push_back(std::make_unique<Cube>(this, "Test cube 1", 
 		glm::vec3(0.0), glm::quat(), glm::vec3(10.0),
-		glm::vec4(1.0, 0.0, 0.0, 1.0));
+		glm::vec4(1.0, 0.0, 0.0, 1.0)));
+	cube_meshes.push_back(std::make_unique<Cube>(this, "Test cube 2", 
+		glm::vec3(-15.0, 0.0, 0.0), glm::quat(), glm::vec3(10.0),
+		glm::vec4(0.0, 1.0, 0.0, 1.0)));
+	cube_meshes.push_back(std::make_unique<Cube>(this, "Test cube 3", 
+		glm::vec3(15.0, 0.0, 0.0), glm::quat(), glm::vec3(10.0),
+		glm::vec4(0.0, 0.0, 1.0, 1.0)));
 }
 
 void VkEngine::init_default_textures() {
@@ -749,7 +755,9 @@ void VkEngine::update_scene()
 	scene_data.view_proj = proj * view;
 
 	//loaded_scenes["structure"]->draw(glm::mat4{ 1.f }, main_draw_context);
-	cube_mesh->draw(glm::mat4{ 1.f }, main_draw_context);
+	for (const auto& cube_mesh : cube_meshes) {
+		cube_mesh->draw(glm::mat4{ 1.f }, main_draw_context);
+	}
 }
 
 GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
