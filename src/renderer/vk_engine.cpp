@@ -566,7 +566,7 @@ void VkEngine::cleanup() {
         vkDeviceWaitIdle(_device);
 
 		loaded_scenes.clear();
-		map.map_cubes.clear();
+		map.clear();
 
         for (int i = 0; i < FRAME_OVERLAP; i++) {
 			vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);

@@ -43,7 +43,13 @@ struct Map {
     Map() {}
     Map(VkEngine* engine, MapLayout& layout);
 
-    void draw(const glm::mat4& top_matrix, DrawContext& ctx);
+    void clear() {
+        map_cubes.clear();
+        core_model.reset();
+    }
+    
+    void draw(const glm::mat4& top_matrix, DrawContext& ctx) const;
 
     std::vector<std::vector<std::unique_ptr<Cube>>> map_cubes;
+    std::unique_ptr<Cube> core_model;
 };

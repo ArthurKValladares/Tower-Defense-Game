@@ -220,7 +220,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
 
             glm::vec3 translate = glm::vec3(c * cube_scale, 0.0, r * cube_scale);
             const glm::quat rotate = glm::quat();
-            const glm::vec3 scale = glm::vec3(10.0);
+            glm::vec3 scale = glm::vec3(10.0);
 
             switch (tile) {
                 case TileType::Path: {
@@ -230,12 +230,20 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 }
                 case TileType::Wall: {
                     const glm::vec4 color = glm::vec4(64 / 255., 64 / 255., 64 / 255., 1.0);
+                    translate.y = cube_scale;
                     cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
                     break;
                 }
                 case TileType::Core: {
-                    const glm::vec4 color = glm::vec4(199 / 255., 40 / 255., 0., 1.0);
+                    glm::vec4 color = glm::vec4(199 / 255., 40 / 255., 0., 1.0);
                     cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
+
+                    color = glm::vec4(252 / 255., 65 / 255., 18 / 255., 1.0);
+                    translate.y = cube_scale;
+                    scale = glm::vec3(5.0);
+
+                    core_model = std::make_unique<Cube>(engine, "core", translate, rotate, scale, color);
+
                     break;
                 }
             }
@@ -244,10 +252,11 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
     }
 }
 
-void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) {
+void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
     for (const auto& line : map_cubes) {
         for (const auto& cube : line) {
             cube->draw(top_matrix, ctx);
         }
     }
+    core_model->draw(top_matrix, ctx);
 }
