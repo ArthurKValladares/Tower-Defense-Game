@@ -14,7 +14,7 @@ set(IMGUI_SRCS
 set(STB_DIR ../vendor/stb)
 include_directories(${STB_DIR})
 
-add_executable(src 
+add_executable(TD 
     main.cpp
     # Renderer
     renderer/vk_engine.cpp
@@ -34,14 +34,14 @@ add_executable(src
     ${IMGUI_SRCS}
 )
 
-target_compile_features(src PRIVATE cxx_std_23)
-target_compile_definitions(src PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
-set_target_properties(src PROPERTIES CXX_EXTENSIONS off CXX_STANDARD_REQUIRED on)
+target_compile_features(TD PRIVATE cxx_std_23)
+target_compile_definitions(TD PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
+set_target_properties(TD PROPERTIES CXX_EXTENSIONS off CXX_STANDARD_REQUIRED on)
 
 if (MSVC)
     # Maybe /W4 /Wall instead of /W3
-    target_compile_options(src PRIVATE)
+    target_compile_options(TD PRIVATE)
     add_compile_definitions(_DISABLE_VECTOR_ANNOTATION _DISABLE_STRING_ANNOTATION)
 else ()
-    target_compile_options(src PRIVATE -Wall -Wextra -Wpedantic -isystem)
+    target_compile_options(TD PRIVATE -Wall -Wextra -Wpedantic -isystem)
 endif ()
