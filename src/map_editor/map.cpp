@@ -1,5 +1,7 @@
 #include "map.h"
 
+#include "../renderer/vk_engine.h"
+
 #include <fstream>
 #include <print>
 #include <unordered_map>
@@ -204,5 +206,48 @@ void MapLayout::print() const {
             std::print("{}", tile_type_to_char(t));
         }
         std::print("\n");
+    }
+}
+
+
+Map::Map(VkEngine* engine, MapLayout& layout) {
+    constexpr float cube_scale = 10.0;
+
+    for (int r = 0; r < layout.tiles.size(); ++r) {
+        std::vector<std::unique_ptr<Cube>> cube_line;
+        for (int c = 0; c < layout.tiles[0].size(); ++c) {
+            const TileType tile = layout.tiles[r][c];
+
+            glm::vec3 translate = glm::vec3(c * cube_scale, 0.0, r * cube_scale);
+            const glm::quat rotate = glm::quat();
+            const glm::vec3 scale = glm::vec3(10.0);
+
+            switch (tile) {
+                case TileType::Path: {
+                    const glm::vec4 color = glm::vec4(60 / 255., 168 / 255., 50 / 255., 1.0);
+                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
+                    break;
+                }
+                case TileType::Wall: {
+                    const glm::vec4 color = glm::vec4(64 / 255., 64 / 255., 64 / 255., 1.0);
+                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
+                    break;
+                }
+                case TileType::Core: {
+                    const glm::vec4 color = glm::vec4(199 / 255., 40 / 255., 0., 1.0);
+                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
+                    break;
+                }
+            }
+        }
+        map_cubes.push_back(std::move(cube_line));
+    }
+}
+
+void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) {
+    for (const auto& line : map_cubes) {
+        for (const auto& cube : line) {
+            cube->draw(top_matrix, ctx);
+        }
     }
 }

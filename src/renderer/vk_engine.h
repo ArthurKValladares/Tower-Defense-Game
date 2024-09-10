@@ -14,6 +14,7 @@
 #include "camera.h"
 
 #include "../geometry/cube.h"
+#include "../map_editor/map.h"
 
 #include <glm/vec4.hpp>
 
@@ -220,7 +221,7 @@ private:
 
     // Mesh data
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loaded_scenes;
-    std::vector<std::unique_ptr<Cube>> cube_meshes;
+    Map map;
 
     DrawContext main_draw_context;
 

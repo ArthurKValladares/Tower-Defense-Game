@@ -2,7 +2,6 @@
 #include <print>
 
 #include "renderer/vk_engine.h"
-#include "map_editor/map.h"
 
 auto main(int argc, char** argv) -> int {
     VkEngine engine;
@@ -12,9 +11,6 @@ auto main(int argc, char** argv) -> int {
         std::print("Could not initialize VkEngine\n");
         return -1;
     }
-
-    MapLayout map = MapLayout::from_path("../maps/test_map.tdm");
-    map.print();
 
     engine.run();
 

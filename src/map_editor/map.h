@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../defs.h"
+#include "../geometry/cube.h"
 
 #include <filesystem>
 
@@ -35,5 +36,14 @@ struct MapLayout {
 
     void print() const;
 
-    std::vector<std::vector<TileType>> tiles;
+    std::vector<std::vector<TileType>> tiles;    
+};
+
+struct Map {
+    Map() {}
+    Map(VkEngine* engine, MapLayout& layout);
+
+    void draw(const glm::mat4& top_matrix, DrawContext& ctx);
+
+    std::vector<std::vector<std::unique_ptr<Cube>>> map_cubes;
 };
