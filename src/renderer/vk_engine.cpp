@@ -739,10 +739,7 @@ void VkEngine::update_scene()
 	main_camera.update();
 	
 	const glm::mat4 view = main_camera.get_view_matrix();
-	glm::mat4 proj = glm::perspective(
-        glm::radians(70.f), (float)_window_extent.width / (float)_window_extent.height, 10000.f, 0.1f);
-	// Invert y axis to match gltf
-	proj[1][1] *= -1;
+	glm::mat4 proj = main_camera.get_proj_matrix((float)_window_extent.width / (float)_window_extent.height);
 
 	scene_data.view = view;
 	scene_data.proj = proj;

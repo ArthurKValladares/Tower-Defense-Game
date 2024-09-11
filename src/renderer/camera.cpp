@@ -46,6 +46,14 @@ glm::mat4 PerspectiveCamera::get_view_matrix()
     return glm::inverse(camera_translation * camera_rotation);
 }
 
+glm::mat4 PerspectiveCamera::get_proj_matrix(float apect_ratio)
+{
+    glm::mat4 proj = glm::perspective(
+        glm::radians(fov), apect_ratio, 10000.f, 0.1f);
+    proj[1][1] *= -1;
+    return proj;
+}
+
 glm::mat4 PerspectiveCamera::get_rotation_matrix()
 {
     const glm::quat pitch_rotation = glm::angleAxis(pitch, glm::vec3 { 1.f, 0.f, 0.f });
