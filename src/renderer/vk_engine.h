@@ -251,7 +251,7 @@ private:
     DeletionQueue _main_deletion_queue;
 
     EngineStats stats;
-    Camera main_camera;
+    PerspectiveCamera main_camera;
 
     // TODO: Too many friend classes
     friend class GLTFMetallic_Roughness;

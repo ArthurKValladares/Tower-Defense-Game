@@ -28,7 +28,7 @@ struct RenderObject {
 };
 
 bool is_visible(const RenderObject& obj, const glm::mat4& view_proj);
-float distance_to_camera(const RenderObject& obj, const Camera& camera);
+float distance_to_camera(const RenderObject& obj, const PerspectiveCamera& camera);
 
 struct DrawContext {
 	std::vector<RenderObject> opaque_surfaces;

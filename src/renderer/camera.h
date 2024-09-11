@@ -3,7 +3,7 @@
 #include "vk_types.h"
 #include <SDL3/SDL_events.h>
 
-struct Camera {
+struct PerspectiveCamera {
     glm::vec3 velocity;
     glm::vec3 position;
 
