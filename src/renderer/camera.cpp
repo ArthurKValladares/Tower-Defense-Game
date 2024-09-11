@@ -90,7 +90,12 @@ void OrthographicCamera::process_sdl_event(SDL_Event& e)
 
 glm::mat4 OrthographicCamera::get_view_matrix()
 {
-    return glm::translate(glm::mat4(1.f), -position);
+    const glm::mat4 camera_translation = glm::translate(glm::mat4(1.f), position);
+    const glm::mat4 camera_rotation = get_rotation_matrix();
+
+    // To create a correct model view, we need to move the world in opposite
+    // direction to the camera
+    return glm::inverse(camera_translation * camera_rotation);
 }
 
 glm::mat4 OrthographicCamera::get_proj_matrix()
@@ -98,4 +103,13 @@ glm::mat4 OrthographicCamera::get_proj_matrix()
     glm::mat4 proj = glm::ortho(-half_sizes.x, half_sizes.x, -half_sizes.y, half_sizes.y, -half_sizes.z, half_sizes.z);
     proj[1][1] *= -1;
     return proj;
+}
+
+
+glm::mat4 OrthographicCamera::get_rotation_matrix()
+{
+    const glm::quat pitch_rotation = glm::angleAxis(pitch / 200.f, glm::vec3 { 1.f, 0.f, 0.f });
+    const glm::quat yaw_rotation = glm::angleAxis(yaw / 200.f, glm::vec3 { 0.f, -1.f, 0.f });
+
+    return glm::toMat4(yaw_rotation) * glm::toMat4(pitch_rotation);
 }

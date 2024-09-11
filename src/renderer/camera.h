@@ -26,8 +26,8 @@ struct OrthographicCamera {
     glm::vec3 velocity;
     glm::vec3 position;
 
-    // TODO: Hook up viewing angle
-    glm::vec3 viewing_angle;
+    float pitch { 0.f };
+    float yaw { 0.f };
 
     glm::vec3 half_sizes = glm::vec3(100.0);
 
@@ -37,4 +37,7 @@ struct OrthographicCamera {
     void process_sdl_event(SDL_Event& e);
 
     void update();
+
+private:
+    glm::mat4 get_rotation_matrix();
 };

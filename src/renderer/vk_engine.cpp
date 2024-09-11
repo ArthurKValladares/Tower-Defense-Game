@@ -991,7 +991,8 @@ void VkEngine::run() {
 		if (ImGui::TreeNode("Camera")) {
 			if (use_ortho_camera) {
 				ImGui::DragFloat3("Position", (float*) &ortho_camera.position);
-				ImGui::DragFloat3("Viewing Angle", (float*) &ortho_camera.viewing_angle);
+				ImGui::DragFloat("Pitch", &ortho_camera.pitch);
+				ImGui::DragFloat("Yaw", &ortho_camera.yaw);
 				ImGui::DragFloat3("Half Sizes", (float*) &ortho_camera.half_sizes);
 			} else {
 				ImGui::DragFloat3("Position", (float*) &main_camera.position);
