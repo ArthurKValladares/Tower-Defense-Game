@@ -61,3 +61,41 @@ glm::mat4 PerspectiveCamera::get_rotation_matrix()
 
     return glm::toMat4(yaw_rotation) * glm::toMat4(pitch_rotation);
 }
+
+void OrthographicCamera::update()
+{
+    position += velocity;
+}
+
+void OrthographicCamera::process_sdl_event(SDL_Event& e)
+{
+    if (e.type == SDL_EVENT_KEY_DOWN) {
+        if (e.key.key == SDLK_W) { velocity.z = -1; }
+        if (e.key.key == SDLK_S) { velocity.z = 1; }
+        if (e.key.key == SDLK_A) { velocity.x = -1; }
+        if (e.key.key == SDLK_D) { velocity.x = 1; }
+        if (e.key.key == SDLK_SPACE) { velocity.y = 1; }
+        if (e.key.key == SDLK_LSHIFT) { velocity.y = -1; }
+    }
+
+    if (e.type == SDL_EVENT_KEY_UP) {
+        if (e.key.key == SDLK_W) { velocity.z = 0; }
+        if (e.key.key == SDLK_S) { velocity.z = 0; }
+        if (e.key.key == SDLK_A) { velocity.x = 0; }
+        if (e.key.key == SDLK_D) { velocity.x = 0; }
+        if (e.key.key == SDLK_SPACE) { velocity.y = 0; }
+        if (e.key.key == SDLK_LSHIFT) { velocity.y = 0; }
+    }
+}
+
+glm::mat4 OrthographicCamera::get_view_matrix()
+{
+    return glm::translate(glm::mat4(1.f), -position);
+}
+
+glm::mat4 OrthographicCamera::get_proj_matrix()
+{
+    glm::mat4 proj = glm::ortho(-x_half_size, x_half_size, -y_half_size, y_half_size, -z_half_size, z_half_size);
+    proj[1][1] *= -1;
+    return proj;
+}

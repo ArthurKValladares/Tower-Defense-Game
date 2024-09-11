@@ -521,9 +521,11 @@ void VkEngine::init_imgui()
 void VkEngine::init_camera() {
 	main_camera.velocity = glm::vec3(0.f);
 	main_camera.position = glm::vec3(0.f, 15.f, 30.f);
-
 	main_camera.pitch = -0.5;
 	main_camera.yaw = 0;
+
+	ortho_camera.velocity = glm::vec3(0.f);
+	ortho_camera.position = glm::vec3(0.f, 15.f, 30.f);
 }
 
 std::optional<EngineInitError> VkEngine::init() {
@@ -736,10 +738,19 @@ void VkEngine::init_default_data() {
 
 void VkEngine::update_scene()
 {
-	main_camera.update();
+	glm::mat4 view;
+	glm::mat4 proj;
+
+	if (use_ortho_camera) {
+		ortho_camera.update();
+		view = ortho_camera.get_view_matrix();
+		proj = ortho_camera.get_proj_matrix();
+	} else {
+		main_camera.update();
+		view = main_camera.get_view_matrix();
+		proj = main_camera.get_proj_matrix((float)_window_extent.width / (float)_window_extent.height);
+	}
 	
-	const glm::mat4 view = main_camera.get_view_matrix();
-	glm::mat4 proj = main_camera.get_proj_matrix((float)_window_extent.width / (float)_window_extent.height);
 
 	scene_data.view = view;
 	scene_data.proj = proj;
@@ -925,6 +936,8 @@ void VkEngine::run() {
             }
 
 			main_camera.process_sdl_event(sdl_event);
+			ortho_camera.process_sdl_event(sdl_event);
+
             ImGui_ImplSDL3_ProcessEvent(&sdl_event);
         }
 
@@ -946,6 +959,7 @@ void VkEngine::run() {
 		ImGui::NewFrame();
 		ImGui::Begin("Debug Data");
 
+		ImGui::Checkbox("Orthographic camera", &use_ortho_camera);
 		ImGui::SliderFloat("Render Scale", &_render_scale, 0.3f, 1.f);
 
 		if (ImGui::TreeNode("Compute Effect")) {

@@ -251,7 +251,10 @@ private:
     DeletionQueue _main_deletion_queue;
 
     EngineStats stats;
+
+    bool use_ortho_camera = false;
     PerspectiveCamera main_camera;
+    OrthographicCamera ortho_camera;
 
     // TODO: Too many friend classes
     friend class GLTFMetallic_Roughness;

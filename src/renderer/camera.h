@@ -21,3 +21,22 @@ struct PerspectiveCamera {
 private:
     glm::mat4 get_rotation_matrix();
 };
+
+struct OrthographicCamera {
+    glm::vec3 velocity;
+    glm::vec3 position;
+
+    // TODO: Hook up viewing angle
+    glm::vec3 viewing_angle;
+
+    float x_half_size = { 100.0 };
+    float y_half_size = { 100.0 };
+    float z_half_size = { 100.0 };
+
+    glm::mat4 get_view_matrix();
+    glm::mat4 get_proj_matrix();
+
+    void process_sdl_event(SDL_Event& e);
+
+    void update();
+};
