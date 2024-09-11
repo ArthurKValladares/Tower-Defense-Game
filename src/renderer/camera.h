@@ -29,9 +29,7 @@ struct OrthographicCamera {
     // TODO: Hook up viewing angle
     glm::vec3 viewing_angle;
 
-    float x_half_size = { 100.0 };
-    float y_half_size = { 100.0 };
-    float z_half_size = { 100.0 };
+    glm::vec3 half_sizes = glm::vec3(100.0);
 
     glm::mat4 get_view_matrix();
     glm::mat4 get_proj_matrix();

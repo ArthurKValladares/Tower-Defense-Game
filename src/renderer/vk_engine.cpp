@@ -525,7 +525,8 @@ void VkEngine::init_camera() {
 	main_camera.yaw = 0;
 
 	ortho_camera.velocity = glm::vec3(0.f);
-	ortho_camera.position = glm::vec3(0.f, 15.f, 30.f);
+	ortho_camera.position = glm::vec3(200.f, 150.f, 30.f);
+	ortho_camera.half_sizes = glm::vec3(250.0);
 }
 
 std::optional<EngineInitError> VkEngine::init() {
@@ -983,6 +984,19 @@ void VkEngine::run() {
 			ImGui::Text("update time %f ms", stats.scene_update_time);
 			ImGui::Text("triangles %i", stats.triangle_count);
 			ImGui::Text("draws %i", stats.drawcall_count);
+			
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNode("Camera")) {
+			if (use_ortho_camera) {
+				ImGui::DragFloat3("Position", (float*) &ortho_camera.position);
+				ImGui::DragFloat3("Viewing Angle", (float*) &ortho_camera.viewing_angle);
+				ImGui::DragFloat3("Half Sizes", (float*) &ortho_camera.half_sizes);
+			} else {
+				ImGui::DragFloat3("Position", (float*) &main_camera.position);
+				ImGui::DragFloat("Fov", &main_camera.fov);
+			}
 			
 			ImGui::TreePop();
 		}

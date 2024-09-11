@@ -95,7 +95,7 @@ glm::mat4 OrthographicCamera::get_view_matrix()
 
 glm::mat4 OrthographicCamera::get_proj_matrix()
 {
-    glm::mat4 proj = glm::ortho(-x_half_size, x_half_size, -y_half_size, y_half_size, -z_half_size, z_half_size);
+    glm::mat4 proj = glm::ortho(-half_sizes.x, half_sizes.x, -half_sizes.y, half_sizes.y, -half_sizes.z, half_sizes.z);
     proj[1][1] *= -1;
     return proj;
 }
