@@ -202,7 +202,7 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
 	draw_image_usages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	draw_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	VkImageCreateInfo draw_img_info = vkinit::image_create_info(_draw_image.image_format, draw_image_usages, draw_image_extent);
+	const VkImageCreateInfo draw_img_info = vkinit::image_create_info(_draw_image.image_format, draw_image_usages, draw_image_extent);
 
 	VmaAllocationCreateInfo draw_img_alloc_info = {};
 	draw_img_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -229,12 +229,12 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
 	VkImageUsageFlags depth_image_usages{};
 	depth_image_usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	VkImageCreateInfo depth_img_info =
+	const VkImageCreateInfo depth_img_info =
         vkinit::image_create_info(_depth_image.image_format, depth_image_usages, draw_image_extent);
 
 	vmaCreateImage(_allocator, &depth_img_info, &draw_img_alloc_info, &_depth_image.image, &_depth_image.allocation, nullptr);
 
-	VkImageViewCreateInfo depth_view_info = vkinit::image_view_create_info(_depth_image.image_format, _depth_image.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+	const VkImageViewCreateInfo depth_view_info = vkinit::image_view_create_info(_depth_image.image_format, _depth_image.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &depth_view_info, nullptr, &_depth_image.image_view));
 
@@ -252,7 +252,7 @@ std::optional<EngineInitError> VkEngine::init_swapchain() {
 
 std::optional<EngineInitError> VkEngine::init_commands() {
     
-	VkCommandPoolCreateInfo command_pool_info =  vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	const VkCommandPoolCreateInfo command_pool_info =  vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 	
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
 
@@ -272,7 +272,7 @@ std::optional<EngineInitError> VkEngine::init_commands() {
     // Immediate structures
     VK_CHECK(vkCreateCommandPool(_device, &command_pool_info, nullptr, &_imm_command_pool));
 
-	VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(_imm_command_pool, 1);
+	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(_imm_command_pool, 1);
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_imm_command_buffer));
 
 	_main_deletion_queue.push_function([=]() { 
@@ -284,8 +284,8 @@ std::optional<EngineInitError> VkEngine::init_commands() {
 
 std::optional<EngineInitError> VkEngine::init_sync_structures() {
 	// Fence starts signalled so we can wait on it on the first frame
-	VkFenceCreateInfo fence_create_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-	VkSemaphoreCreateInfo semaphore_create_info = vkinit::semaphore_create_info();
+	const VkFenceCreateInfo fence_create_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+	const VkSemaphoreCreateInfo semaphore_create_info = vkinit::semaphore_create_info();
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
 		if(vkCreateFence(_device, &fence_create_info, nullptr, &_frames[i]._render_fence)) {
@@ -315,7 +315,7 @@ std::optional<EngineInitError> VkEngine::init_sync_structures() {
 
 void VkEngine::init_descriptors() {
     // create a descriptor pool
-    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
+    const std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
@@ -352,7 +352,7 @@ void VkEngine::init_descriptors() {
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
 		// create a descriptor pool
-		std::vector<DescriptorAllocator::PoolSizeRatio> frame_sizes = {
+		const std::vector<DescriptorAllocator::PoolSizeRatio> frame_sizes = {
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
@@ -461,7 +461,7 @@ void VkEngine::init_imgui()
 {
     // Create Imgui-exclusice Descriptor pool
 	// NOTE: This pool is huge, but copied from demo
-	VkDescriptorPoolSize pool_sizes[] = { 
+	const VkDescriptorPoolSize pool_sizes[] = { 
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -653,20 +653,20 @@ void VkEngine::init_default_meshes() {
 
 void VkEngine::init_default_textures() {
 // Create flat-colored images
-	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_default_images._white_image = create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+	const uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
 	_default_images._grey_image = create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	const uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_default_images._black_image = create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	// Create checkerboard image
-	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+	const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 	std::array<uint32_t, 16 *16 > pixels;
 	for (int x = 0; x < 16; x++) {
 		for (int y = 0; y < 16; y++) {
@@ -766,7 +766,7 @@ GPUMeshBuffers VkEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vert
 		VMA_MEMORY_USAGE_GPU_ONLY
     );
 
-	VkBufferDeviceAddressInfo device_adress_info{ 
+	const VkBufferDeviceAddressInfo device_adress_info{ 
         .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
         .buffer = mesh_buffers.vertex_buffer.buffer
     };
@@ -845,7 +845,7 @@ AllocatedImage VkEngine::create_image(VkExtent3D size, VkFormat format, VkImageU
 
 AllocatedImage VkEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mip_mapped)
 {
-	size_t data_size = size.depth * size.width * size.height * 4;
+	const size_t data_size = size.depth * size.width * size.height * 4;
 	AllocatedBuffer upload_buffer = create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	memcpy(upload_buffer.info.pMappedData, data, data_size);
@@ -894,7 +894,7 @@ void VkEngine::run() {
     bool should_quit = false;
 
     while (!should_quit) {
-		auto start = std::chrono::system_clock::now();
+		const auto start = std::chrono::system_clock::now();
 
         while (SDL_PollEvent(&sdl_event) != 0) {
             switch (sdl_event.type) {
@@ -984,8 +984,8 @@ void VkEngine::run() {
 		draw();
 
 		//get clock again, compare with start clock
-		auto end = std::chrono::system_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		const auto end = std::chrono::system_clock::now();
+		const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 		stats.frametime = elapsed.count() / 1000.f;
     }
 }

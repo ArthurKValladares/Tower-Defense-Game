@@ -31,7 +31,7 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
 
     material_layout = layout_builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	VkDescriptorSetLayout layouts[] = { 
+	const VkDescriptorSetLayout layouts[] = { 
         engine->_gpu_scene_data_descriptor_layout,
         material_layout
     };
@@ -131,7 +131,7 @@ void FlatColorMaterial::build_pipelines(VkEngine* engine) {
 
     material_layout = layout_builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	VkDescriptorSetLayout layouts[] = { 
+	const VkDescriptorSetLayout layouts[] = { 
         engine->_gpu_scene_data_descriptor_layout,
         material_layout
     };

@@ -142,7 +142,7 @@ namespace {
 
 void MeshNode::draw(const glm::mat4& top_matrix, DrawContext& ctx)
 {
-	glm::mat4 node_matrix = top_matrix * world_transform;
+	const glm::mat4 node_matrix = top_matrix * world_transform;
 
 	for (GeoSurface& s : mesh->surfaces) {
 		RenderObject def;
@@ -358,7 +358,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
             new_surface.start_index = (uint32_t)indices.size();
             new_surface.count = (uint32_t)gltf.accessors[p.indicesAccessor.value()].count;
 
-            size_t initial_vtx = vertices.size();
+            const size_t initial_vtx = vertices.size();
 
             // load indexes
             {
@@ -389,7 +389,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
             }
 
             // load vertex normals
-            auto normals = p.findAttribute("NORMAL");
+            const auto normals = p.findAttribute("NORMAL");
             if (normals != p.attributes.end()) {
 
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[(*normals).accessorIndex],
@@ -399,7 +399,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
             }
 
             // load UVs
-            auto uv = p.findAttribute("TEXCOORD_0");
+            const auto uv = p.findAttribute("TEXCOORD_0");
             if (uv != p.attributes.end()) {
 
                 fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[(*uv).accessorIndex],
@@ -410,7 +410,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadedGLTF::load_gltf(VkEngine* engin
             }
 
             // load vertex colors
-            auto colors = p.findAttribute("COLOR_0");
+            const auto colors = p.findAttribute("COLOR_0");
             if (colors != p.attributes.end()) {
 
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*colors).accessorIndex],
@@ -558,7 +558,7 @@ bool is_visible(const RenderObject& obj, const glm::mat4& view_proj) {
         glm::vec3 { -1, -1, -1 },
     };
 
-    glm::mat4 matrix = view_proj * obj.transform;
+    const glm::mat4 matrix = view_proj * obj.transform;
 
     // Initial min/max bounds outside mesh bounding box
     glm::vec3 min = { 1.5, 1.5, 1.5 };
