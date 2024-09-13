@@ -63,13 +63,20 @@ void GLTFMetallic_Roughness::build_pipelines(VkEngine* engine)
 	pipeline_builder._pipeline_layout = new_layout;
 
     opaque_pipeline.pipeline = pipeline_builder.build_pipeline(engine->_device);
+	// TODO: cleanup wireframe stuff
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_LINE);
+	opaque_pipeline.wireframe_pipeline = pipeline_builder.build_pipeline(engine->_device);
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
 
 	// transparent pipeline variant
 	pipeline_builder.enable_blending_additive();
 	pipeline_builder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
     
 	transparent_pipeline.pipeline = pipeline_builder.build_pipeline(engine->_device);
-	
+	// TODO: cleanup wireframe stuff
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_LINE);
+	transparent_pipeline.wireframe_pipeline = pipeline_builder.build_pipeline(engine->_device);
+
     // Cleanup
 	vkDestroyShaderModule(engine->_device, mesh_frag_shader, nullptr);
 	vkDestroyShaderModule(engine->_device, mesh_vertex_shader, nullptr);
@@ -106,6 +113,8 @@ void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 
 	vkDestroyPipeline(device, transparent_pipeline.pipeline, nullptr);
 	vkDestroyPipeline(device, opaque_pipeline.pipeline, nullptr);
+	vkDestroyPipeline(device, transparent_pipeline.wireframe_pipeline, nullptr);
+	vkDestroyPipeline(device, opaque_pipeline.wireframe_pipeline, nullptr);
 }
 
 void FlatColorMaterial::build_pipelines(VkEngine* engine) {
@@ -162,7 +171,10 @@ void FlatColorMaterial::build_pipelines(VkEngine* engine) {
 	pipeline_builder._pipeline_layout = new_layout;
 
     pipeline.pipeline = pipeline_builder.build_pipeline(engine->_device);
-	
+	// TODO: cleanup wireframe stuff
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_LINE);
+	pipeline.wireframe_pipeline = pipeline_builder.build_pipeline(engine->_device);
+
     // Cleanup
 	vkDestroyShaderModule(engine->_device, mesh_frag_shader, nullptr);
 	vkDestroyShaderModule(engine->_device, mesh_vertex_shader, nullptr);
@@ -188,4 +200,6 @@ void FlatColorMaterial::clear_resources(VkDevice device)
 	vkDestroyDescriptorSetLayout(device, material_layout, nullptr);
 	vkDestroyPipelineLayout(device, pipeline.layout, nullptr);
 	vkDestroyPipeline(device, pipeline.pipeline, nullptr);
+	// TODO: Add `clear` function to MaterialPipeline, use it here and all other places
+	vkDestroyPipeline(device, pipeline.wireframe_pipeline, nullptr);
 }

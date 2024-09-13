@@ -960,6 +960,7 @@ void VkEngine::run() {
 		ImGui::NewFrame();
 		ImGui::Begin("Debug Data");
 
+		ImGui::Checkbox("Wireframe", &draw_wireframe);
 		ImGui::Checkbox("Orthographic camera", &use_ortho_camera);
 		ImGui::SliderFloat("Render Scale", &_render_scale, 0.3f, 1.f);
 
@@ -1093,7 +1094,12 @@ void VkEngine::draw_geometry(VkCommandBuffer cmd) {
             if (r.material->pipeline != last_pipeline) {
 
                 last_pipeline = r.material->pipeline;
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+				if (draw_wireframe) {
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->wireframe_pipeline);
+				} else {
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+				}
+                
                 vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,r.material->pipeline->layout, 0, 1,
                     &global_descriptor, 0, nullptr);
 

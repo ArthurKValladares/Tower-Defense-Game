@@ -243,7 +243,8 @@ private:
     AllocatedImage _depth_image;
 	VkExtent2D _draw_extent;
     float _render_scale = 1.f;
-
+    bool draw_wireframe = false;
+    
     // Window Data
     VkExtent2D _window_extent = { 0 , 0 };
     struct SDL_Window* _window = nullptr;

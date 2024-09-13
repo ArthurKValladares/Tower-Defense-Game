@@ -10,6 +10,7 @@ enum class MaterialPass :uint8_t {
 
 struct MaterialPipeline {
 	VkPipeline pipeline;
+    VkPipeline wireframe_pipeline;
 	VkPipelineLayout layout;
 };
 
