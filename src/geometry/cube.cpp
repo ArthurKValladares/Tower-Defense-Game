@@ -16,8 +16,8 @@ Cube::Cube(VkEngine* engine, std::string name,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU
     );
 
-    mesh_node.mesh = std::make_shared<MeshAsset>();
-    mesh_node.mesh->name = std::move(name);
+    mesh = std::make_shared<MeshAsset>();
+    mesh->name = std::move(name);
 
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
@@ -165,8 +165,6 @@ Cube::Cube(VkEngine* engine, std::string name,
 
     new_surface.material->data = engine->flat_color_material.write_material(engine->vk_device(), material_resources, engine->_global_descriptor_allocator);
 
-    MeshAsset& mesh_asset = *mesh_node.mesh;
-
     // Calculate bounds
     // TODO: Duplicated code
     glm::vec3 min_pos = vertices[0].position;
@@ -179,9 +177,9 @@ Cube::Cube(VkEngine* engine, std::string name,
     new_surface.bounds.extents = (max_pos - min_pos) / 2.f;
     new_surface.bounds.sphere_radius = glm::length(new_surface.bounds.extents);
 
-    mesh_asset.surfaces.push_back(new_surface);
+    mesh->surfaces.push_back(new_surface);
 
-    mesh_asset.mesh_buffers = engine->upload_mesh(indices, vertices);
+    mesh->mesh_buffers = engine->upload_mesh(indices, vertices);
 
     //
     // Load/Create Node
@@ -190,19 +188,15 @@ Cube::Cube(VkEngine* engine, std::string name,
     glm::mat4 tm = glm::translate(glm::mat4(1.f), translate);
     glm::mat4 rm = glm::toMat4(rotation);
     glm::mat4 sm = glm::scale(glm::mat4(1.f), scale);
-    mesh_node.local_transform = tm * rm * sm;
+    local_transform = tm * rm * sm;
 
-    mesh_node.refresh_transform(glm::mat4 { 1.f });
+    refresh_transform(glm::mat4 { 1.f });
 }
 
 Cube::~Cube() {
     VkDevice dv = creator->vk_device();
 
-    creator->destroy_buffer(mesh_node.mesh->mesh_buffers.index_buffer);
-    creator->destroy_buffer(mesh_node.mesh->mesh_buffers.vertex_buffer);
+    creator->destroy_buffer(mesh->mesh_buffers.index_buffer);
+    creator->destroy_buffer(mesh->mesh_buffers.vertex_buffer);
     creator->destroy_buffer(material_data_buffer);
-}
-
-void Cube::draw(const glm::mat4& top_matrix, DrawContext& ctx) {
-    mesh_node.draw(top_matrix, ctx);
 }
