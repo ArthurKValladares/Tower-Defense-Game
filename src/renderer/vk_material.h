@@ -9,9 +9,12 @@ enum class MaterialPass :uint8_t {
 };
 
 struct MaterialPipeline {
+    // TODO: Create function, with a layout optional param
 	VkPipeline pipeline;
     VkPipeline wireframe_pipeline;
 	VkPipelineLayout layout;
+
+    void destroy(VkDevice device, bool destroy_layout = true);
 };
 
 struct MaterialInstance {

@@ -35,7 +35,6 @@ struct DrawContext {
     std::vector<RenderObject> transparent_surfaces;
 };
 
-// TODO: Maybe make this some sort of enum-based approach intead of ingeritance-based later
 class IRenderable {
     virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
 };

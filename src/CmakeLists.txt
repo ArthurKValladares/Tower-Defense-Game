@@ -25,6 +25,7 @@ add_executable(TD
     renderer/vk_pipelines.cpp
     renderer/vk_gltf_material.cpp
     renderer/vk_renderable.cpp
+    renderer/vk_material.cpp
     renderer/camera.cpp
     # Editor
     map_editor/map.cpp

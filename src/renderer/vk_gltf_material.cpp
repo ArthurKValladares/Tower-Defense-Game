@@ -109,12 +109,8 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
 	vkDestroyDescriptorSetLayout(device, material_layout,nullptr);
-	vkDestroyPipelineLayout(device,transparent_pipeline.layout,nullptr);
-
-	vkDestroyPipeline(device, transparent_pipeline.pipeline, nullptr);
-	vkDestroyPipeline(device, opaque_pipeline.pipeline, nullptr);
-	vkDestroyPipeline(device, transparent_pipeline.wireframe_pipeline, nullptr);
-	vkDestroyPipeline(device, opaque_pipeline.wireframe_pipeline, nullptr);
+	transparent_pipeline.destroy(device);
+	opaque_pipeline.destroy(device, false);
 }
 
 void FlatColorMaterial::build_pipelines(VkEngine* engine) {
@@ -198,8 +194,5 @@ MaterialInstance FlatColorMaterial::write_material(VkDevice device, const Materi
 void FlatColorMaterial::clear_resources(VkDevice device)
 {
 	vkDestroyDescriptorSetLayout(device, material_layout, nullptr);
-	vkDestroyPipelineLayout(device, pipeline.layout, nullptr);
-	vkDestroyPipeline(device, pipeline.pipeline, nullptr);
-	// TODO: Add `clear` function to MaterialPipeline, use it here and all other places
-	vkDestroyPipeline(device, pipeline.wireframe_pipeline, nullptr);
+	pipeline.destroy(device);
 }
