@@ -4,11 +4,10 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-// TODO: delta time to make movement frame-independent
-void PerspectiveCamera::update()
+void PerspectiveCamera::update(float dt)
 {
     const glm::mat4 camera_rotation = get_rotation_matrix();
-    position += glm::vec3(camera_rotation * glm::vec4(velocity * 0.5f, 0.f));
+    position += glm::vec3(camera_rotation * glm::vec4(velocity * dt, 0.f));
 }
 
 void PerspectiveCamera::process_sdl_event(SDL_Event& e)
@@ -62,9 +61,9 @@ glm::mat4 PerspectiveCamera::get_rotation_matrix()
     return glm::toMat4(yaw_rotation) * glm::toMat4(pitch_rotation);
 }
 
-void OrthographicCamera::update()
+void OrthographicCamera::update(float dt)
 {
-    position += velocity;
+    position += velocity * dt;
 }
 
 void OrthographicCamera::process_sdl_event(SDL_Event& e)

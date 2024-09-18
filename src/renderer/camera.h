@@ -16,7 +16,7 @@ struct PerspectiveCamera {
 
     void process_sdl_event(SDL_Event& e);
 
-    void update();
+    void update(float dt);
 
 private:
     glm::mat4 get_rotation_matrix();
@@ -36,7 +36,7 @@ struct OrthographicCamera {
 
     void process_sdl_event(SDL_Event& e);
 
-    void update();
+    void update(float dt);
 
 private:
     glm::mat4 get_rotation_matrix();
