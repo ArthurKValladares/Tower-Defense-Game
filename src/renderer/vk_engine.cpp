@@ -115,6 +115,9 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
     }
 
     // Create Device
+	VkPhysicalDeviceFeatures features{};
+	features.fillModeNonSolid = true;
+
 	VkPhysicalDeviceVulkan13Features features13{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 	features13.dynamicRendering = true;
 	features13.synchronization2 = true;
@@ -126,6 +129,7 @@ std::optional<EngineInitError> VkEngine::init_vulkan() {
 	vkb::PhysicalDeviceSelector selector{ vkb_instance };
 	vkb::Result<vkb::PhysicalDevice> vkb_physical_device_result = selector
 		.set_minimum_version(1, 3)
+		.set_required_features(features)
 		.set_required_features_13(features13)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
