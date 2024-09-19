@@ -107,8 +107,8 @@ glm::mat4 OrthographicCamera::get_proj_matrix()
 
 glm::mat4 OrthographicCamera::get_rotation_matrix()
 {
-    const glm::quat pitch_rotation = glm::angleAxis(pitch / 200.f, glm::vec3 { 1.f, 0.f, 0.f });
-    const glm::quat yaw_rotation = glm::angleAxis(yaw / 200.f, glm::vec3 { 0.f, -1.f, 0.f });
+    const glm::quat pitch_rotation = glm::angleAxis(glm::radians(pitch), glm::vec3 { 1.f, 0.f, 0.f });
+    const glm::quat yaw_rotation = glm::angleAxis(glm::radians(yaw), glm::vec3 { 0.f, -1.f, 0.f });
 
     return glm::toMat4(yaw_rotation) * glm::toMat4(pitch_rotation);
 }

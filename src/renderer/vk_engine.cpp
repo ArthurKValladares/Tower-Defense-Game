@@ -531,6 +531,9 @@ void VkEngine::init_camera() {
 	ortho_camera.velocity = glm::vec3(0.f);
 	ortho_camera.position = glm::vec3(200.f, 150.f, 30.f);
 	ortho_camera.half_sizes = glm::vec3(250.0);
+
+	ortho_camera.pitch = 75.0;
+	ortho_camera.yaw = 75.0;
 }
 
 std::optional<EngineInitError> VkEngine::init() {
