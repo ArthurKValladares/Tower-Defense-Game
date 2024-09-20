@@ -2,15 +2,10 @@
 
 #include "../defs.h"
 #include "../geometry/cube.h"
+#include "tile_types.h"
 
 #include <filesystem>
 
-enum class TileType : unsigned char {
-    Invalid = 0,
-    Path,
-    Wall,
-    Core,
-};
 
 // TODO: Auto-generate this function, and a reversed one later
 static char tile_type_to_char(TileType ty) {

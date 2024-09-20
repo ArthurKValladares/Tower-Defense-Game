@@ -29,15 +29,15 @@ enum class TileType : unsigned char {
 // TileType -> char function
 //
 
-#define TILE_TYPE_TO_CHAR_CASE(TileType, Char, ...) \
+#define TILE_TYPE_TO_CHAR_CASE_I(TileType, Char, ...) \
 case TileType: { \
     return Char; \
 }
+#define TILE_TYPE_TO_CHAR_CASE(...) TILE_TYPE_TO_CHAR_CASE_I(__VA_ARGS__)
 
 static char tile_type_to_char_test(TileType ty) {
     switch (ty) {
         TILE_TYPE_TO_CHAR_CASE(PATH_TILE)
-        case TileType::Invalid:
         default: {
             M_Assert(false, "Tile type not supported");
             return '\0';
