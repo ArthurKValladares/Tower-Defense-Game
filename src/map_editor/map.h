@@ -6,26 +6,6 @@
 
 #include <filesystem>
 
-
-// TODO: Auto-generate this function, and a reversed one later
-static char tile_type_to_char(TileType ty) {
-    switch (ty) {
-        case TileType::Path: {
-            return ' ';
-        }
-        case TileType::Wall: {
-            return '#';
-        }
-        case TileType::Core: {
-            return 'O';
-        }
-        case TileType::Invalid: {
-            M_Assert(false, "Tile type not supported");
-            return '\0';
-        }
-    }
-}
-
 struct MapLayout {
     static MapLayout from_path(const std::filesystem::path& path);
 

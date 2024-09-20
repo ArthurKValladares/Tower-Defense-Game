@@ -15,9 +15,6 @@ for case in cases:
     tile_char = case[1]
     cog.outl("case TileType::%s: { return '%s'; }" % (tile_type, tile_char))
 ]]]*/
-case TileType::Path: { return ' '; }
-case TileType::Wall: { return '#'; }
-case TileType::Core: { return 'O'; }
 //[[[end]]]
         default: {
             M_Assert(false, "Tile type not supported");
