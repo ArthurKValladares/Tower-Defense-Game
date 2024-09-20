@@ -52,26 +52,12 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
 
         for (int col = 0; col < num_cols; ++col) {
             const char& c = line[col];
-            switch(c) {
-                case ' ': {
-                    tiles_this_line.emplace_back(TileType::Path);
-                    break;
-                }
-                case '#': {
-                    tiles_this_line.emplace_back(TileType::Wall);
-                    break;
-                }
-                case 'O': {
-                    tiles_this_line.emplace_back(TileType::Core);
-                    M_Assert(core_row == -1 && core_col == -1, "Maps can only have one core.");
-                    core_row = row;
-                    core_col = col;
-                    break;
-                }
-                default: {
-                    M_Assert(false, "Unsupported tile type.");
-                    break;
-                }
+            const TileType ty = char_to_tile_type(c);
+            tiles_this_line.emplace_back(ty);
+            if (ty == TileType::Core) {
+                M_Assert(core_row == -1 && core_col == -1, "Maps can only have one core.");
+                core_row = row;
+                core_col = col;
             }
         }
 
@@ -218,34 +204,26 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         for (int c = 0; c < layout.tiles[0].size(); ++c) {
             const TileType tile = layout.tiles[r][c];
 
-            glm::vec3 translate = glm::vec3(c * cube_scale, 0.0, r * cube_scale);
+            const glm::vec3 translate = glm::vec3(
+                c * cube_scale,
+                tile == TileType::Wall ? cube_scale : 0.0,
+                r * cube_scale
+            );
             const glm::quat rotate = glm::quat();
-            glm::vec3 scale = glm::vec3(10.0);
+            const glm::vec3 scale = glm::vec3(10.0);
+            const glm::vec4 color = tile_type_to_color(tile);
 
-            switch (tile) {
-                case TileType::Path: {
-                    const glm::vec4 color = glm::vec4(60 / 255., 168 / 255., 50 / 255., 1.0);
-                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
-                    break;
-                }
-                case TileType::Wall: {
-                    const glm::vec4 color = glm::vec4(64 / 255., 64 / 255., 64 / 255., 1.0);
-                    translate.y = cube_scale;
-                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
-                    break;
-                }
-                case TileType::Core: {
-                    glm::vec4 color = glm::vec4(199 / 255., 40 / 255., 0., 1.0);
-                    cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
+            cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
 
-                    color = glm::vec4(252 / 255., 65 / 255., 18 / 255., 1.0);
-                    translate.y = cube_scale;
-                    scale = glm::vec3(5.0);
-
-                    core_model = std::make_unique<Cube>(engine, "core", translate, rotate, scale, color);
-
-                    break;
-                }
+            if (tile == TileType::Core) {
+                const glm::vec4 core_model_color = glm::vec4(252 / 255., 65 / 255., 18 / 255., 1.0);
+                const glm::vec3 core_model_scale = glm::vec3(5.0);
+                const glm::vec3 core_model_translate = glm::vec3(
+                    translate.x,
+                    cube_scale,
+                    translate.z
+                );
+                core_model = std::make_unique<Cube>(engine, "core", core_model_translate, rotate, core_model_scale, core_model_color);
             }
         }
         map_cubes.push_back(std::move(cube_line));
