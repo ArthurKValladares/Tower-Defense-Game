@@ -63,27 +63,24 @@ glm::mat4 PerspectiveCamera::get_rotation_matrix()
 
 void OrthographicCamera::update(float dt)
 {
-    position += velocity * dt;
+    const glm::mat4 camera_rotation = get_rotation_matrix();
+    position += glm::vec3(camera_rotation * glm::vec4(velocity * dt, 0.f));
 }
 
 void OrthographicCamera::process_sdl_event(SDL_Event& e)
 {
     if (e.type == SDL_EVENT_KEY_DOWN) {
-        if (e.key.key == SDLK_W) { velocity.z = -1; }
-        if (e.key.key == SDLK_S) { velocity.z = 1; }
+        if (e.key.key == SDLK_W) { velocity.y = 1; }
+        if (e.key.key == SDLK_S) { velocity.y = -1; }
         if (e.key.key == SDLK_A) { velocity.x = -1; }
         if (e.key.key == SDLK_D) { velocity.x = 1; }
-        if (e.key.key == SDLK_SPACE) { velocity.y = 1; }
-        if (e.key.key == SDLK_LSHIFT) { velocity.y = -1; }
     }
 
     if (e.type == SDL_EVENT_KEY_UP) {
-        if (e.key.key == SDLK_W) { velocity.z = 0; }
-        if (e.key.key == SDLK_S) { velocity.z = 0; }
+        if (e.key.key == SDLK_W) { velocity.y = 0; }
+        if (e.key.key == SDLK_S) { velocity.y = 0; }
         if (e.key.key == SDLK_A) { velocity.x = 0; }
         if (e.key.key == SDLK_D) { velocity.x = 0; }
-        if (e.key.key == SDLK_SPACE) { velocity.y = 0; }
-        if (e.key.key == SDLK_LSHIFT) { velocity.y = 0; }
     }
 }
 
