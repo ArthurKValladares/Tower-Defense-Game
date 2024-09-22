@@ -33,6 +33,7 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
     std::print("Loaded map at: {}\n", path.string());
 
     std::vector<std::vector<TileType>> tiles;
+    std::vector<std::pair<int, int>> entry_points;
     std::string line;
 
     int core_row = -1;
@@ -146,6 +147,16 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
             to_visit.push_back({left, current_depth + 1});
         }
 
+        if (is_on_edge(current)) {
+            if (is_on_edge(above) && get_tile_type(above) == TileType::Path ||
+                is_on_edge(below) && get_tile_type(below) == TileType::Path ||
+                is_on_edge(right) && get_tile_type(right) == TileType::Path ||
+                is_on_edge(left)  && get_tile_type(left)  == TileType::Path) {
+                M_Assert(false, "Entry-points (tiles on the edge) can only be 1-wide.");
+            }
+            entry_points.push_back({current.r, current.c});
+        }
+
         const auto current_is_dead_end = [&]() {
             return !is_on_edge(current) &&
                 (get_tile_type(above) != TileType::Path || visited.contains(above)) &&
@@ -155,18 +166,6 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
         };
 
         if (current_is_dead_end()) {
-            const TileType c = get_tile_type(current);
-
-            const TileType t1 = get_tile_type(above);
-            const TileType t2 = get_tile_type(below);
-            const TileType t3 = get_tile_type(right);
-            const TileType t4 = get_tile_type(left);
-
-            const bool vt1 = visited.contains(above);
-            const bool vt2 = visited.contains(below);
-            const bool vt3 = visited.contains(right);
-            const bool vt4 = visited.contains(left);
-
             M_Assert(false, "Map has a path with a dead-end (path that does not lead to the edge of the map).");
         }
     }
@@ -182,7 +181,8 @@ MapLayout MapLayout::from_path(const std::filesystem::path& path) {
     }
 
     return MapLayout{
-        std::move(tiles)
+        std::move(tiles),
+        std::move(entry_points)
     };
 }
 
@@ -228,6 +228,33 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         }
         map_cubes.push_back(std::move(cube_line));
     }
+
+    for (const std::pair<int, int> coord : layout.entry_points) {
+        int r = coord.first;
+        int c = coord.second;
+
+        const int spawn_area_scale = 2;
+        if (r == 0) {
+            r -= spawn_area_scale;
+        } else if (c == 0) {
+            c -= spawn_area_scale;
+        } else if (r == layout.tiles.size() - 1) {
+            r += spawn_area_scale;
+        } else if (c == layout.tiles[0].size() - 1) {
+            c += spawn_area_scale;
+        }
+
+        const glm::vec3 translate = glm::vec3(
+            c * cube_scale,
+            0.0,
+            r * cube_scale
+        );
+        const glm::quat rotate = glm::quat();
+        const glm::vec3 scale = glm::vec3(10.0 * (spawn_area_scale + 1));
+        const glm::vec4 color = tile_type_to_color(TileType::Path);
+
+        spawn_cubes.emplace_back(std::make_unique<Cube>(engine, "spawn cube", translate, rotate, scale, color));
+    }
 }
 
 void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
@@ -236,5 +263,10 @@ void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
             cube->draw(top_matrix, ctx);
         }
     }
+
+    for (const auto& cube : spawn_cubes) {
+        cube->draw(top_matrix, ctx);
+    }
+
     core_model->draw(top_matrix, ctx);
 }

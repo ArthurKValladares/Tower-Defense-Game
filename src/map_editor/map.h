@@ -11,7 +11,8 @@ struct MapLayout {
 
     void print() const;
 
-    std::vector<std::vector<TileType>> tiles;    
+    std::vector<std::vector<TileType>> tiles;
+    std::vector<std::pair<int, int>> entry_points;
 };
 
 struct Map {
@@ -20,11 +21,13 @@ struct Map {
 
     void clear() {
         map_cubes.clear();
+        spawn_cubes.clear();
         core_model.reset();
     }
     
     void draw(const glm::mat4& top_matrix, DrawContext& ctx) const;
 
     std::vector<std::vector<std::unique_ptr<Cube>>> map_cubes;
+    std::vector<std::unique_ptr<Cube>> spawn_cubes;
     std::unique_ptr<Cube> core_model;
 };
