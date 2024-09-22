@@ -253,7 +253,7 @@ private:
 
     EngineStats stats;
 
-    bool use_ortho_camera = false;
+    bool use_ortho_camera = true;
     PerspectiveCamera main_camera;
     OrthographicCamera ortho_camera;
 

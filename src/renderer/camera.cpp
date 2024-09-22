@@ -74,8 +74,11 @@ void OrthographicCamera::process_sdl_event(SDL_Event& e)
         if (e.key.key == SDLK_S) { velocity.y = -1; }
         if (e.key.key == SDLK_A) { velocity.x = -1; }
         if (e.key.key == SDLK_D) { velocity.x = 1; }
-        if (e.key.key == SDLK_SPACE) { half_sizes += glm::vec3(1.5); }
-        if (e.key.key == SDLK_LSHIFT) { half_sizes -= glm::vec3(1.5); }
+        if (e.key.key == SDLK_SPACE) { scale += 0.1; }
+        if (e.key.key == SDLK_LSHIFT) { scale -= 0.1; }
+    }
+    if (scale <= 0.0) {
+        scale = 0.1;
     }
 
     if (e.type == SDL_EVENT_KEY_UP) {
@@ -89,16 +92,21 @@ void OrthographicCamera::process_sdl_event(SDL_Event& e)
 glm::mat4 OrthographicCamera::get_view_matrix()
 {
     const glm::mat4 camera_translation = glm::translate(glm::mat4(1.f), position);
+    const glm::mat4 scale_matrix = glm::scale(glm::mat4(1.f), glm::vec3(scale));
     const glm::mat4 camera_rotation = get_rotation_matrix();
 
     // To create a correct model view, we need to move the world in opposite
     // direction to the camera
-    return glm::inverse(camera_translation * camera_rotation);
+    return glm::inverse(camera_translation * camera_rotation * scale_matrix);
 }
 
 glm::mat4 OrthographicCamera::get_proj_matrix()
 {
-    glm::mat4 proj = glm::ortho(-half_sizes.x, half_sizes.x, -half_sizes.y, half_sizes.y, -half_sizes.z, half_sizes.z);
+    glm::mat4 proj = glm::ortho(
+        -half_sizes.x, half_sizes.x,
+        -half_sizes.y, half_sizes.y,
+        -half_sizes.z, half_sizes.z
+    );
     proj[1][1] *= -1;
     return proj;
 }
