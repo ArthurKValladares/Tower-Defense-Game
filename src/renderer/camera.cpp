@@ -74,6 +74,8 @@ void OrthographicCamera::process_sdl_event(SDL_Event& e)
         if (e.key.key == SDLK_S) { velocity.y = -1; }
         if (e.key.key == SDLK_A) { velocity.x = -1; }
         if (e.key.key == SDLK_D) { velocity.x = 1; }
+        if (e.key.key == SDLK_SPACE) { half_sizes += glm::vec3(1.5); }
+        if (e.key.key == SDLK_LSHIFT) { half_sizes -= glm::vec3(1.5); }
     }
 
     if (e.type == SDL_EVENT_KEY_UP) {
