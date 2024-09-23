@@ -64,7 +64,7 @@ glm::mat4 PerspectiveCamera::get_rotation_matrix()
 void OrthographicCamera::update(float dt)
 {
     const glm::mat4 camera_rotation = get_rotation_matrix();
-    position += glm::vec3(camera_rotation * glm::vec4(velocity * dt, 0.f));
+    position += glm::vec3(camera_rotation * glm::vec4(velocity * scale * dt, 0.f));
 }
 
 void OrthographicCamera::process_sdl_event(SDL_Event& e)
@@ -77,7 +77,7 @@ void OrthographicCamera::process_sdl_event(SDL_Event& e)
         if (e.key.key == SDLK_SPACE) { scale += 0.1; }
         if (e.key.key == SDLK_LSHIFT) { scale -= 0.1; }
     }
-    if (scale <= 0.0) {
+    if (scale <= 0.1) {
         scale = 0.1;
     }
 
@@ -102,10 +102,11 @@ glm::mat4 OrthographicCamera::get_view_matrix()
 
 glm::mat4 OrthographicCamera::get_proj_matrix()
 {
+    const float inv_scale = 1.0 / scale;
     glm::mat4 proj = glm::ortho(
         -half_sizes.x, half_sizes.x,
         -half_sizes.y, half_sizes.y,
-        -half_sizes.z, half_sizes.z
+        -half_sizes.z * inv_scale, half_sizes.z * inv_scale
     );
     proj[1][1] *= -1;
     return proj;

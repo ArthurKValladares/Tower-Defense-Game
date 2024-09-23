@@ -250,7 +250,8 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
             r * cube_scale
         );
         const glm::quat rotate = glm::quat();
-        const glm::vec3 scale = glm::vec3(10.0 * (spawn_area_scale + 1));
+        const float xz_scale = 10.0 * (spawn_area_scale + 1);
+        const glm::vec3 scale = glm::vec3(xz_scale, 10.0, xz_scale);
         const glm::vec4 color = tile_type_to_color(TileType::Path);
 
         spawn_cubes.emplace_back(std::make_unique<Cube>(engine, "spawn cube", translate, rotate, scale, color));
