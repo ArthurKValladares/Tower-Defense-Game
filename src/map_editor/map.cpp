@@ -210,7 +210,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 r * cube_scale
             );
             const glm::quat rotate = glm::quat();
-            const glm::vec3 scale = glm::vec3(10.0);
+            const glm::vec3 scale = glm::vec3(cube_scale);
             const glm::vec4 color = tile_type_to_color(tile);
 
             cube_line.emplace_back(std::make_unique<Cube>(engine, "cube", translate, rotate, scale, color));
@@ -230,8 +230,11 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
     }
 
     for (const std::pair<int, int> coord : layout.entry_points) {
-        int r = coord.first;
-        int c = coord.second;
+        const int s_r = coord.first;
+        const int s_c = coord.second;
+
+        int r = s_r;
+        int c = s_c;
 
         const int spawn_area_scale = 2;
         if (r == 0) {
@@ -250,11 +253,46 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
             r * cube_scale
         );
         const glm::quat rotate = glm::quat();
-        const float xz_scale = 10.0 * (spawn_area_scale + 1);
-        const glm::vec3 scale = glm::vec3(xz_scale, 10.0, xz_scale);
+        const float xz_scale = cube_scale * (spawn_area_scale + 1);
+        const glm::vec3 scale = glm::vec3(xz_scale, cube_scale, xz_scale);
         const glm::vec4 color = tile_type_to_color(TileType::Path);
 
         spawn_cubes.emplace_back(std::make_unique<Cube>(engine, "spawn cube", translate, rotate, scale, color));
+
+        if (s_r == 0) {
+            {
+                const float left_edge_pos = translate.x - scale.x / 2.0;
+                const float left_edge_size = left_edge_pos;
+
+                const glm::vec3 o_translate = glm::vec3(
+                    left_edge_size / 2.0,
+                    cube_scale,
+                    r * cube_scale
+                );
+                const glm::quat o_rotate = glm::quat();
+                const glm::vec3 o_scale = glm::vec3(left_edge_size, cube_scale, xz_scale);
+                const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
+                outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
+            }
+            
+            {
+                const float right_edge_pos = translate.x + scale.x / 2.0;
+                const float right_edge_size = layout.tiles[0].size() * cube_scale - right_edge_pos;
+
+                const glm::vec3 o_translate = glm::vec3(
+                    right_edge_pos + right_edge_size / 2.0,
+                    cube_scale,
+                    r * cube_scale
+                );
+                const glm::quat o_rotate = glm::quat();
+                const glm::vec3 o_scale = glm::vec3(right_edge_size, cube_scale, xz_scale);
+                const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
+                outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
+            }
+        } else if (c == 0) {
+        } else if (r == layout.tiles.size() - 1) {
+        } else if (c == layout.tiles[0].size() - 1) {
+        }
     }
 }
 
@@ -266,6 +304,10 @@ void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
     }
 
     for (const auto& cube : spawn_cubes) {
+        cube->draw(top_matrix, ctx);
+    }
+
+    for (const auto& cube : outer_cubes) {
         cube->draw(top_matrix, ctx);
     }
 
