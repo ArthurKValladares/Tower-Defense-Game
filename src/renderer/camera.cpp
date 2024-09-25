@@ -100,11 +100,11 @@ glm::mat4 OrthographicCamera::get_view_matrix()
     return glm::inverse(camera_translation * camera_rotation * scale_matrix);
 }
 
-glm::mat4 OrthographicCamera::get_proj_matrix()
+glm::mat4 OrthographicCamera::get_proj_matrix(float aspect_ratio)
 {
     const float inv_scale = 1.0 / scale;
     glm::mat4 proj = glm::ortho(
-        -half_sizes.x, half_sizes.x,
+        -half_sizes.x * aspect_ratio, half_sizes.x * aspect_ratio,
         -half_sizes.y, half_sizes.y,
         -half_sizes.z * inv_scale, half_sizes.z * inv_scale
     );

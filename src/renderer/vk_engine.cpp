@@ -752,7 +752,7 @@ void VkEngine::update_scene()
 	if (use_ortho_camera) {
 		ortho_camera.update(stats.frametime);
 		view = ortho_camera.get_view_matrix();
-		proj = ortho_camera.get_proj_matrix();
+		proj = ortho_camera.get_proj_matrix((float)_window_extent.width / (float)_window_extent.height);
 	} else {
 		main_camera.update(stats.frametime);
 		view = main_camera.get_view_matrix();

@@ -34,7 +34,7 @@ struct OrthographicCamera {
     glm::vec3 half_sizes = glm::vec3(100.0);
 
     glm::mat4 get_view_matrix();
-    glm::mat4 get_proj_matrix();
+    glm::mat4 get_proj_matrix(float apect_ratio);
 
     void process_sdl_event(SDL_Event& e);
 
