@@ -317,8 +317,42 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
-        } else if (c == 0) {
-        } else if (c == layout.tiles[0].size() - 1) {
+        } else if (s_c == 0 || s_c == layout.tiles[0].size() - 1) {
+            // TODO: I just copied this from above with minor changes, need to make generic
+            {
+                const float spawn_area_half_size = scale.z / 2.0;
+                const float left_edge_pos = translate.z - spawn_area_half_size;
+                const float left_rect_size = left_edge_pos + cube_half_scale;
+                const float center = left_rect_size / 2.0 - cube_half_scale;
+
+                const glm::vec3 o_translate = glm::vec3(
+                    c * cube_scale,
+                    cube_scale,
+                    center
+                );
+                const glm::quat o_rotate = glm::quat();
+                const glm::vec3 o_scale = glm::vec3(xz_scale, cube_scale, left_rect_size);
+                const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
+                outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
+            }
+
+            {
+                const float spawn_area_half_size = scale.z / 2.0;
+                const float right_edge_pos = translate.z + spawn_area_half_size;
+                const float right_border_pos = layout.tiles.size() * cube_scale - cube_half_scale;
+                const float right_edge_size = right_border_pos - right_edge_pos;
+                const float center = right_edge_pos + right_edge_size / 2.0;
+
+                const glm::vec3 o_translate = glm::vec3(
+                    c * cube_scale,
+                    cube_scale,
+                    center
+                );
+                const glm::quat o_rotate = glm::quat();
+                const glm::vec3 o_scale = glm::vec3(xz_scale, cube_scale, right_edge_size);
+                const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
+                outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
+            }
         }
     }
 }
