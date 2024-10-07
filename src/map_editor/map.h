@@ -23,6 +23,8 @@ struct Map {
         map_cubes.clear();
         spawn_cubes.clear();
         outer_cubes.clear();
+        margins.clear();
+        
         core_model.reset();
     }
     
@@ -31,5 +33,6 @@ struct Map {
     std::vector<std::vector<std::unique_ptr<Cube>>> map_cubes;
     std::vector<std::unique_ptr<Cube>> spawn_cubes;
     std::vector<std::unique_ptr<Cube>> outer_cubes;
+    std::vector<std::unique_ptr<Cube>> margins;
     std::unique_ptr<Cube> core_model;
 };

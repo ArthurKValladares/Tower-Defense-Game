@@ -200,6 +200,9 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
     constexpr float cube_scale = 10.0;
     constexpr float cube_half_scale = cube_scale / 2.0;
 
+    const float size_x = layout.tiles[0].size() * cube_scale;
+    const float size_y = layout.tiles.size() * cube_scale;
+
     for (int r = 0; r < layout.tiles.size(); ++r) {
         std::vector<std::unique_ptr<Cube>> cube_line;
         for (int c = 0; c < layout.tiles[0].size(); ++c) {
@@ -230,6 +233,10 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         map_cubes.push_back(std::move(cube_line));
     }
 
+    float min_x = -cube_half_scale;
+    float min_y = -cube_half_scale;
+    float max_x = size_x - cube_half_scale;
+    float max_y = size_y - cube_half_scale;
     for (const std::pair<int, int> coord : layout.entry_points) {
         const int s_r = coord.first;
         const int s_c = coord.second;
@@ -301,7 +308,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 // The right edge position will be the center of the spawn region cube, plus half its scale
                 const float right_edge_pos = translate.x + spawn_area_half_size;
                 // The position of the right border will be the toral size of the board, offset by the half cube
-                const float right_border_pos = layout.tiles[0].size() * cube_scale - cube_half_scale;
+                const float right_border_pos = size_x - cube_half_scale;
                 // The right rect size is the difference between the border and the spawn area edge
                 const float right_edge_size = right_border_pos - right_edge_pos;
                 // The center is the right edge position plus half its size
@@ -316,6 +323,12 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 const glm::vec3 o_scale = glm::vec3(right_edge_size, cube_scale, xz_scale);
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
+            }
+
+            if (s_r == 0) {
+                min_y -= scale.x;
+            } else {
+                max_y += scale.x;
             }
         } else if (s_c == 0 || s_c == layout.tiles[0].size() - 1) {
             // TODO: I just copied this from above with minor changes, need to make generic
@@ -339,7 +352,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
             {
                 const float spawn_area_half_size = scale.z / 2.0;
                 const float right_edge_pos = translate.z + spawn_area_half_size;
-                const float right_border_pos = layout.tiles.size() * cube_scale - cube_half_scale;
+                const float right_border_pos = size_y - cube_half_scale;
                 const float right_edge_size = right_border_pos - right_edge_pos;
                 const float center = right_edge_pos + right_edge_size / 2.0;
 
@@ -353,8 +366,58 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
+
+            if (s_c == 0) {
+                min_x -= scale.z;
+            } else {
+                max_x += scale.z;
+            }
         }
     }
+
+    const float padded_size_x = max_x - min_x;
+    const float padded_size_y = max_y - min_y;
+
+    const float margin_scale = cube_scale * 30.0;
+    const float half_margin_scale = margin_scale / 2.0;
+
+    const float half_x = min_x + padded_size_x / 2.0;
+    const float half_y = min_y + padded_size_y / 2.0;
+
+    const glm::quat m_rotate = glm::quat();
+    const glm::vec4 m_color = tile_type_to_color(TileType::Wall);
+
+    const glm::vec3 x_scale = glm::vec3(padded_size_x, cube_scale, margin_scale);
+    const glm::vec3 y_scale = glm::vec3(margin_scale, cube_scale, padded_size_y);
+
+    // Top Margin
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+        glm::vec3(half_x, cube_scale, min_y - half_margin_scale), 
+        m_rotate, 
+        x_scale, 
+        m_color
+    ));
+    // Bottom Margin
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+        glm::vec3(half_x, cube_scale, max_y + half_margin_scale),
+        m_rotate,
+        x_scale,
+        m_color
+    ));
+    // Left Margin
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin",
+        glm::vec3(min_x - half_margin_scale, cube_scale, half_y),
+        m_rotate,
+        y_scale,
+        m_color
+    ));
+    // Right Margin
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin",
+        glm::vec3(max_x + half_margin_scale, cube_scale, half_y),
+        m_rotate,
+        y_scale,
+        m_color
+    ));
 }
 
 void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
@@ -369,6 +432,10 @@ void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
     }
 
     for (const auto& cube : outer_cubes) {
+        cube->draw(top_matrix, ctx);
+    }
+
+    for (const auto& cube : margins) {
         cube->draw(top_matrix, ctx);
     }
 
