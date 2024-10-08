@@ -197,6 +197,10 @@ void MapLayout::print() const {
 
 
 Map::Map(VkEngine* engine, MapLayout& layout) {
+    // TODO: This whole function is a mess.
+    // Pull out all the known variables to the top later, use them consistently.
+    // Also separate into more clear steps.
+
     constexpr float cube_scale = 10.0;
     constexpr float cube_half_scale = cube_scale / 2.0;
 
@@ -232,6 +236,11 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         }
         map_cubes.push_back(std::move(cube_line));
     }
+
+    bool spawn_on_left   = false;
+    bool spawn_on_right  = false;
+    bool spawn_on_top    = false;
+    bool spawn_on_bottom = false;
 
     float min_x = -cube_half_scale;
     float min_y = -cube_half_scale;
@@ -327,8 +336,10 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
 
             if (s_r == 0) {
                 min_y -= scale.x;
+                spawn_on_left = true;
             } else {
                 max_y += scale.x;
+                spawn_on_right = true;
             }
         } else if (s_c == 0 || s_c == layout.tiles[0].size() - 1) {
             // TODO: I just copied this from above with minor changes, need to make generic
@@ -369,11 +380,62 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
 
             if (s_c == 0) {
                 min_x -= scale.z;
+                spawn_on_top = true;
             } else {
                 max_x += scale.z;
+                spawn_on_bottom = true;
             }
         }
     }
+
+    // Create inner corners
+    {
+        // TODO: Cleanup, repeated variables
+        constexpr int spawn_area_scale = 3;
+        constexpr float spawn_area_size = spawn_area_scale * cube_scale;
+        const float spawn_area_half_size = spawn_area_size / 2.0;
+
+        const glm::quat c_rotate = glm::quat();
+        const glm::vec4 c_color = tile_type_to_color(TileType::Wall);
+        const glm::vec3 c_scale = glm::vec3(spawn_area_size, cube_scale, spawn_area_size);
+
+        if (spawn_on_left && spawn_on_top) { 
+            margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+                glm::vec3(-cube_half_scale - spawn_area_half_size, cube_scale, -cube_half_scale - spawn_area_half_size), 
+                c_rotate, 
+                c_scale, 
+                c_color
+            ));
+        }
+
+        if (spawn_on_left && spawn_on_bottom) {
+            margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+                glm::vec3(-cube_half_scale - spawn_area_half_size, cube_scale, -cube_half_scale + size_y + spawn_area_half_size), 
+                c_rotate, 
+                c_scale, 
+                c_color
+            ));
+        }
+
+        if (spawn_on_right && spawn_on_top) {
+            margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+                glm::vec3(-cube_half_scale + size_x + spawn_area_half_size, cube_scale, -cube_half_scale - spawn_area_half_size), 
+                c_rotate, 
+                c_scale, 
+                c_color
+            ));
+        }
+
+        if (spawn_on_right && spawn_on_bottom) {
+            margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+                glm::vec3(-cube_half_scale + size_x + spawn_area_half_size, cube_scale, -cube_half_scale + size_y + spawn_area_half_size), 
+                c_rotate, 
+                c_scale, 
+                c_color
+            ));
+        }
+    }
+    
 
     const float padded_size_x = max_x - min_x;
     const float padded_size_y = max_y - min_y;
