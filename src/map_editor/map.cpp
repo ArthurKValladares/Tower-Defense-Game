@@ -201,11 +201,11 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
     // Pull out all the known variables to the top later, use them consistently.
     // Also separate into more clear steps.
 
-    constexpr float cube_scale = 15.0;
+    constexpr float cube_scale = 10.0;
     constexpr float cube_half_scale = cube_scale / 2.0;
 
     // TODO: The name here is bad
-    constexpr int spawn_area_padding = 1;
+    constexpr int spawn_area_padding = 2;
     constexpr int spawn_area_extra_blocks = spawn_area_padding * 2;
     constexpr float spawn_area_size = cube_scale * (spawn_area_extra_blocks + 1);
     constexpr float spawn_area_half_size = spawn_area_size / 2.0;
@@ -256,17 +256,17 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         const int s_r = coord.first;
         const int s_c = coord.second;
 
+        // TODO: This part is very weird and hacky, can make better
         int r = s_r;
         int c = s_c;
-
         if (r == 0) {
-            r -= spawn_area_extra_blocks;
+            r -= spawn_area_padding + 1;
         } else if (c == 0) {
-            c -= spawn_area_extra_blocks;
+            c -= spawn_area_padding + 1;
         } else if (r == layout.tiles.size() - 1) {
-            r += spawn_area_extra_blocks;
+            r += spawn_area_padding + 1;
         } else if (c == layout.tiles[0].size() - 1) {
-            c += spawn_area_extra_blocks;
+            c += spawn_area_padding + 1;
         }
 
         const glm::vec3 translate = glm::vec3(
