@@ -201,8 +201,14 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
     // Pull out all the known variables to the top later, use them consistently.
     // Also separate into more clear steps.
 
-    constexpr float cube_scale = 10.0;
+    constexpr float cube_scale = 15.0;
     constexpr float cube_half_scale = cube_scale / 2.0;
+
+    // TODO: The name here is bad
+    constexpr int spawn_area_padding = 1;
+    constexpr int spawn_area_extra_blocks = spawn_area_padding * 2;
+    constexpr float spawn_area_size = cube_scale * (spawn_area_extra_blocks + 1);
+    constexpr float spawn_area_half_size = spawn_area_size / 2.0;
 
     const float size_x = layout.tiles[0].size() * cube_scale;
     const float size_y = layout.tiles.size() * cube_scale;
@@ -253,15 +259,14 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         int r = s_r;
         int c = s_c;
 
-        const int spawn_area_scale = 2;
         if (r == 0) {
-            r -= spawn_area_scale;
+            r -= spawn_area_extra_blocks;
         } else if (c == 0) {
-            c -= spawn_area_scale;
+            c -= spawn_area_extra_blocks;
         } else if (r == layout.tiles.size() - 1) {
-            r += spawn_area_scale;
+            r += spawn_area_extra_blocks;
         } else if (c == layout.tiles[0].size() - 1) {
-            c += spawn_area_scale;
+            c += spawn_area_extra_blocks;
         }
 
         const glm::vec3 translate = glm::vec3(
@@ -270,8 +275,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
             r * cube_scale
         );
         const glm::quat rotate = glm::quat();
-        const float xz_scale = cube_scale * (spawn_area_scale + 1);
-        const glm::vec3 scale = glm::vec3(xz_scale, cube_scale, xz_scale);
+        const glm::vec3 scale = glm::vec3(spawn_area_size, cube_scale, spawn_area_size);
         const glm::vec4 color = tile_type_to_color(TileType::Path);
 
         spawn_cubes.emplace_back(std::make_unique<Cube>(engine, "spawn cube", translate, rotate, scale, color));
@@ -299,7 +303,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                     r * cube_scale
                 );
                 const glm::quat o_rotate = glm::quat();
-                const glm::vec3 o_scale = glm::vec3(left_rect_size, cube_scale, xz_scale);
+                const glm::vec3 o_scale = glm::vec3(left_rect_size, cube_scale, spawn_area_size);
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
@@ -329,7 +333,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                     r * cube_scale
                 );
                 const glm::quat o_rotate = glm::quat();
-                const glm::vec3 o_scale = glm::vec3(right_edge_size, cube_scale, xz_scale);
+                const glm::vec3 o_scale = glm::vec3(right_edge_size, cube_scale, spawn_area_size);
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
@@ -355,7 +359,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                     center
                 );
                 const glm::quat o_rotate = glm::quat();
-                const glm::vec3 o_scale = glm::vec3(xz_scale, cube_scale, left_rect_size);
+                const glm::vec3 o_scale = glm::vec3(spawn_area_size, cube_scale, left_rect_size);
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
@@ -373,7 +377,7 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
                     center
                 );
                 const glm::quat o_rotate = glm::quat();
-                const glm::vec3 o_scale = glm::vec3(xz_scale, cube_scale, right_edge_size);
+                const glm::vec3 o_scale = glm::vec3(spawn_area_size, cube_scale, right_edge_size);
                 const glm::vec4 o_color = tile_type_to_color(TileType::Wall);
                 outer_cubes.emplace_back(std::make_unique<Cube>(engine, "outer cube", o_translate, o_rotate, o_scale, o_color));
             }
@@ -390,11 +394,6 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
 
     // Create inner corners
     {
-        // TODO: Cleanup, repeated variables
-        constexpr int spawn_area_scale = 3;
-        constexpr float spawn_area_size = spawn_area_scale * cube_scale;
-        const float spawn_area_half_size = spawn_area_size / 2.0;
-
         const glm::quat c_rotate = glm::quat();
         const glm::vec4 c_color = tile_type_to_color(TileType::Wall);
         const glm::vec3 c_scale = glm::vec3(spawn_area_size, cube_scale, spawn_area_size);
