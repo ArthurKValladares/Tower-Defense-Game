@@ -418,6 +418,36 @@ Map::Map(VkEngine* engine, MapLayout& layout) {
         y_scale,
         m_color
     ));
+
+    const glm::vec3 c_scale = glm::vec3(margin_scale, cube_scale, margin_scale);
+    // Top-Left Corner
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+        glm::vec3(min_x - half_margin_scale, cube_scale, min_y - half_margin_scale), 
+        m_rotate, 
+        c_scale,
+        m_color
+    ));
+    // Top-Right Corner
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin", 
+        glm::vec3(max_x + half_margin_scale, cube_scale, min_y - half_margin_scale),
+        m_rotate,
+        c_scale,
+        m_color
+    ));
+    // Bottom-Left Corner
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin",
+        glm::vec3(min_x - half_margin_scale, cube_scale, max_y + half_margin_scale), 
+        m_rotate,
+        c_scale,
+        m_color
+    ));
+    // Bottom-Right Corner
+    margins.emplace_back(std::make_unique<Cube>(engine, "margin",
+        glm::vec3(max_x + half_margin_scale, cube_scale, max_y + half_margin_scale), 
+        m_rotate,
+        c_scale,
+        m_color
+    ));
 }
 
 void Map::draw(const glm::mat4& top_matrix, DrawContext& ctx) const {
